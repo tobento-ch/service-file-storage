@@ -1,0 +1,50 @@
+{
+    "name": "tobento/service-file-storage",
+    "type": "library",
+    "description": "File storage for PHP applications.",
+    "keywords": [
+        "tobento",
+        "package",
+        "PHP",
+        "file",
+        "storage"
+    ],
+    "homepage": "https://www.tobento.ch",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Tobias Strub",
+            "email": "info@tobento.ch",
+            "homepage": "https://www.tobento.ch"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.0",
+        "tobento/service-iterable": "^1.0",
+        "tobento/service-filesystem": "^1.0",
+        "league/flysystem": "^3.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "vimeo/psalm": "^4.0",
+        "nyholm/psr7": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tobento\\Service\\FileStorage\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tobento\\Service\\FileStorage\\Test\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --testdox --colors=always",
+        "psalm": "vendor/bin/psalm"
+    }
+}
