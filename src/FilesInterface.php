@@ -29,6 +29,14 @@ interface FilesInterface extends IteratorAggregate
     public function filter(callable $callback): static;
     
     /**
+     * Returns a new instance with the files sorted.
+     *
+     * @param callable $callback
+     * @return static
+     */
+    public function sort(callable $callback): static;
+    
+    /**
      * Returns all files.
      *
      * @return array<int, FileInterface>
