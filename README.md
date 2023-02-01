@@ -615,6 +615,30 @@ $folders = $folders->sort(
 );
 ```
 
+**first**
+
+Returns the first folder or null if none.
+
+```php
+use Tobento\Service\FileStorage\FolderInterface;
+
+$folder = $folders->first();
+
+// null|FolderInterface
+```
+
+**get**
+
+Returns the folder by path or null if not exists.
+
+```php
+use Tobento\Service\FileStorage\FolderInterface;
+
+$folder = $folders->get(path: 'foo');
+
+// null|FolderInterface
+```
+
 **all**
 
 Returns all folders.

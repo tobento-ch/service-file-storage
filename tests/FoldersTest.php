@@ -84,6 +84,34 @@ class FoldersTest extends TestCase
             $paths
         );        
     }    
+
+    public function testFirstMethod()
+    {
+        $folders = new Folders([
+            new Folder(path: 'file'),
+            new Folder(path: 'image'),
+        ]);
+        
+        $this->assertSame('file', $folders->first()?->path());
+        
+        $folders = new Folders([]);
+        
+        $this->assertSame(null, $folders->first());
+    }
+    
+    public function testGetMethod()
+    {
+        $folders = new Folders([
+            new Folder(path: 'file'),
+            new Folder(path: 'image'),
+        ]);
+        
+        $this->assertSame('image', $folders->get(path: 'image')?->path());
+        
+        $folders = new Folders([]);
+        
+        $this->assertSame(null, $folders->get(path: 'image'));
+    }
     
     public function testAllMethod()
     {

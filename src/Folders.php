@@ -65,6 +65,34 @@ class Folders implements FoldersInterface
         $new->folders = $folders;
         return $new;
     }
+
+    /**
+     * Returns the first folder or null if none.
+     *
+     * @return null|FolderInterface
+     */
+    public function first(): null|FolderInterface
+    {
+        $key = array_key_first($this->folders);
+        
+        if (is_null($key)) {
+            return null;
+        }
+        
+        return $this->folders[$key];
+    }
+    
+    /**
+     * Returns the folder by path or null if not exists.
+     *
+     * @return null|FolderInterface
+     */
+    public function get(string $path): null|FolderInterface
+    {
+        return $this->filter(
+            fn(FolderInterface $f) => $f->path() === $path
+        )->first();
+    }
     
     /**
      * Returns all folders.

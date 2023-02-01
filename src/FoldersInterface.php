@@ -29,6 +29,28 @@ interface FoldersInterface extends IteratorAggregate
     public function filter(callable $callback): static;
     
     /**
+     * Returns a new instance with the folders sorted.
+     *
+     * @param callable $callback
+     * @return static
+     */
+    public function sort(callable $callback): static;
+
+    /**
+     * Returns the first folder or null if none.
+     *
+     * @return null|FolderInterface
+     */
+    public function first(): null|FolderInterface;
+    
+    /**
+     * Returns the folder by path or null if not exists.
+     *
+     * @return null|FolderInterface
+     */
+    public function get(string $path): null|FolderInterface;
+    
+    /**
      * Returns all folders.
      *
      * @return array<int, FolderInterface>
