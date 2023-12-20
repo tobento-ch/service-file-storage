@@ -330,7 +330,7 @@ $storages->get('unknown');
 // throws StorageException
 ```
 
-You may use the **has** method to check if a storage exists.
+You may use the ```has``` method to check if a storage exists.
 
 ```php
 var_dump($storages->has('name'));
@@ -666,8 +666,8 @@ use Tobento\Service\FileStorage\Flysystem;
 use Tobento\Service\FileStorage\StorageInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
 
-$filesystem = new League\Flysystem\Filesystem(
-    adapter: new League\Flysystem\Local\LocalFilesystemAdapter(
+$filesystem = new \League\Flysystem\Filesystem(
+    adapter: new \League\Flysystem\Local\LocalFilesystemAdapter(
         location: __DIR__.'/root/directory/'
     )
 );
