@@ -156,6 +156,16 @@ class Storages implements StoragesInterface
     }
     
     /**
+     * Returns all storage names.
+     *
+     * @return array
+     */
+    public function names(): array
+    {
+        return array_keys($this->storages);
+    }
+    
+    /**
      * Create a new Storage.
      *
      * @param string $name

@@ -84,4 +84,11 @@ interface StoragesInterface
      * @return bool
      */
     public function hasDefault(string $name): bool;
+    
+    /**
+     * Returns all storage names.
+     *
+     * @return array
+     */
+    public function names(): array;
 }
