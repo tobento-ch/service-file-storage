@@ -169,4 +169,14 @@ class StoragesTest extends TestCase
             $storages->getDefaults()
         );
     }
+    
+    public function testNamesMethod()
+    {
+        $this->assertSame([], (new Storages())->names());
+        
+        $this->assertSame(
+            ['foo', 'bar'],
+            (new Storages($this->createStorage('foo'), $this->createStorage('bar')))->names()
+        );
+    }
 }
