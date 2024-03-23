@@ -64,7 +64,7 @@ class File implements FileInterface
         $pathinfo = pathinfo($path);
         $this->name = $pathinfo['basename'] ?? '';
         $this->filename = $pathinfo['filename'] ?? '';
-        $this->extension = isset($pathinfo['extension']) ? strtolower($pathinfo['extension']) : null;
+        $this->extension = isset($pathinfo['extension']) ? strtolower($pathinfo['extension']) : '';
     }
     
     /**
