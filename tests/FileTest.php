@@ -47,6 +47,28 @@ class FileTest extends TestCase
         $this->assertFalse($file->isHtmlImage());
     }
     
+    public function testWithoutFileExtension()
+    {
+        $file = new File(path: 'folder/file');
+        
+        $this->assertSame('folder/file', $file->path());
+        $this->assertSame('file', $file->name());
+        $this->assertSame('file', $file->filename());
+        $this->assertSame('', $file->extension());
+        $this->assertSame('folder', $file->folderPath());
+    }
+    
+    public function testWithoutFilename()
+    {
+        $file = new File(path: 'folder/.htaccess');
+        
+        $this->assertSame('folder/.htaccess', $file->path());
+        $this->assertSame('.htaccess', $file->name());
+        $this->assertSame('', $file->filename());
+        $this->assertSame('htaccess', $file->extension());
+        $this->assertSame('folder', $file->folderPath());
+    }    
+    
     public function testAllWithoutStream()
     {
         $file = new File(
