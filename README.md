@@ -478,6 +478,9 @@ var_dump($file->lastModified());
 var_dump($file->url());
 // string(40) "https://www.example.com/folder/image.jpg" or NULL
 
+// Modify url returning a new instance:
+$file = $file->withUrl('https://www.example.com/folder/image.jpg');
+
 var_dump($file->visibility());
 // string(6) "public" or NULL
 
