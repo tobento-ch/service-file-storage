@@ -102,13 +102,47 @@ class FileFactoryTest extends TestCase
         $this->assertTrue(is_string($file->content()));
         $this->assertSame('image/jpeg', $file->mimeType());
         $this->assertSame(20042, $file->size());
-        $this->assertSame(null, $file->width()); // as it reads from url
-        $this->assertSame(null, $file->height()); // as it reads from url
+        $this->assertSame(200, $file->width());
+        $this->assertSame(150, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
         $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertTrue($file->isHtmlImage());        
+    }
+    
+    public function testCreateFileFromPathMethodWithSingleAttributes()
+    {
+        $fileFactory = new FileFactory(
+            flysystem: $this->createFlysystem(),
+            streamFactory: new Psr17Factory(),
+        );
+
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['stream']);
+        $this->assertInstanceof(StreamInterface::class, $file->stream());
+
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['mimeType']);
+        $this->assertSame('image/jpeg', $file->mimeType());
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['size']);
+        $this->assertSame(20042, $file->size());
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['width']);
+        $this->assertSame(200, $file->width());
+        $this->assertSame(150, $file->height());
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['height']);
+        $this->assertSame(200, $file->width());
+        $this->assertSame(150, $file->height());
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['lastModified']);
+        $this->assertTrue(is_int($file->lastModified()));
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['url']);
+        $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
+        
+        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['visibility']);
+        $this->assertSame('public', $file->visibility());
     }
     
     public function testCreateFileFromFileAttributesMethod()
@@ -146,5 +180,63 @@ class FileFactoryTest extends TestCase
         $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());        
+    }
+    
+    public function testCreateFileFromFileAttributesMethodWithSingleAttributes()
+    {
+        $fileFactory = new FileFactory(
+            flysystem: $this->createFlysystem(),
+            streamFactory: new Psr17Factory(),
+        );
+
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['stream'],
+        );
+        $this->assertInstanceof(StreamInterface::class, $file->stream());
+
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['mimeType'],
+        );
+        $this->assertSame('image/jpeg', $file->mimeType());
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['size'],
+        );
+        $this->assertSame(20042, $file->size());
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['width'],
+        );
+        $this->assertSame(200, $file->width());
+        $this->assertSame(150, $file->height());
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['height'],
+        );
+        $this->assertSame(200, $file->width());
+        $this->assertSame(150, $file->height());
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg', lastModified: 1673349666),
+            with: ['lastModified'],
+        );
+        $this->assertTrue(is_int($file->lastModified()));
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg'),
+            with: ['url'],
+        );
+        $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
+        
+        $file = $fileFactory->createFileFromFileAttributes(
+            attributes: new FileAttributes(path: 'image.jpg', visibility: 'public'),
+            with: ['visibility'],
+        );
+        $this->assertSame('public', $file->visibility());
     }
 }
