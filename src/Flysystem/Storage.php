@@ -112,7 +112,7 @@ class Storage implements StorageInterface
             }
             
         } catch (UnableToWriteFile|UnableToSetVisibility $e) {
-            throw new FileWriteException($path, $content, 'Writing to storage failed', 0, $e);
+            throw new FileWriteException($path, $content, 'Writing to storage failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -171,7 +171,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->delete($path);
         } catch (UnableToDeleteFile $e) {
-            throw new FileException($path, 'Deleting file failed', 0, $e);
+            throw new FileException($path, 'Deleting file failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -188,7 +188,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->move($from, $to);
         } catch (UnableToMoveFile $e) {
-            throw new FileException($from, 'Moving file failed', 0, $e);
+            throw new FileException($from, 'Moving file failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -205,7 +205,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->copy($from, $to);
         } catch (UnableToCopyFile $e) {
-            throw new FileException($from, 'Copying file failed', 0, $e);
+            throw new FileException($from, 'Copying file failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -221,7 +221,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->createDirectory($path);
         } catch (UnableToCreateDirectory $e) {
-            throw new FolderException($path, 'Creating folder failed', 0, $e);
+            throw new FolderException($path, 'Creating folder failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -273,7 +273,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->deleteDirectory($path);
         } catch (UnableToDeleteDirectory $e) {
-            throw new FolderException($path, 'Deleting folder failed', 0, $e);
+            throw new FolderException($path, 'Deleting folder failed: '. $e->getMessage(), 0, $e);
         }
     }
     
@@ -294,7 +294,7 @@ class Storage implements StorageInterface
         try {
             $this->flysystem->setVisibility($path, $visibility);
         } catch (UnableToSetVisibility $e) {
-            throw new StorageException('Setting visibility failed', 0, $e);
+            throw new StorageException('Setting visibility failed: '. $e->getMessage(), 0, $e);
         }
     }
     
