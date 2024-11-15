@@ -130,4 +130,33 @@ class FileTest extends TestCase
             $this->assertTrue($file->isHtmlImage());            
         }
     }
+    
+    public function testWithUrlMethod()
+    {
+        $file = new File(path: 'file.txt', url: 'https::www.example.com/path');
+        $newFile = $file->withUrl('https::www.example.com/new-path');
+        
+        $this->assertFalse($file === $newFile);
+        $this->assertSame('https::www.example.com/new-path', $newFile->url());
+        $this->assertSame(null, $file->withUrl(null)->url());
+    }
+    
+    public function testHumanSizeMethod()
+    {
+        $this->assertSame('0 B', (new File(path: 'f.txt'))->humanSize());
+        $this->assertSame('0 B', (new File(path: 'f.txt', size: 0))->humanSize());
+        $this->assertSame('10 B', (new File(path: 'f.txt', size: 10))->humanSize());
+        $this->assertSame('1 KB', (new File(path: 'f.txt', size: 1024))->humanSize());
+        $this->assertSame('1 MB', (new File(path: 'f.txt', size: 1024 ** 2))->humanSize());
+        $this->assertSame('1 GB', (new File(path: 'f.txt', size: 1024 ** 3))->humanSize());
+        $this->assertSame('1 TB', (new File(path: 'f.txt', size: 1024 ** 4))->humanSize());
+        $this->assertSame('1 PB', (new File(path: 'f.txt', size: 1024 ** 5))->humanSize());
+        $this->assertSame('1 EB', (new File(path: 'f.txt', size: 1024 ** 6))->humanSize());
+        $this->assertSame('1 ZB', (new File(path: 'f.txt', size:1024 ** 7))->humanSize());
+        $this->assertSame('1 YB', (new File(path: 'f.txt', size: 1024 ** 8))->humanSize());
+        $this->assertSame('1024 YB', (new File(path: 'f.txt', size: 1024 ** 9))->humanSize());
+        $this->assertSame('1.07 KB', (new File(path: 'f.txt', size: 1100))->humanSize());
+        $this->assertSame('1.1 KB', (new File(path: 'f.txt', size: 1100))->humanSize(precision: 1));
+        $this->assertSame('1.074 KB', (new File(path: 'f.txt', size: 1100))->humanSize(precision: 3));
+    }
 }
