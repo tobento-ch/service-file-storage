@@ -63,16 +63,19 @@ class FileFactory implements FileFactoryInterface
      */
     public function createFileFromPath(string $path, array $with = []): FileInterface
     {
+        if (in_array('width', $with) || in_array('height', $with)) {
+            $with[] = 'mimeType';
+            $with[] = 'stream';
+        }
+        
         // handle mime type:
         $mimeType = $this->getMimeType($with, $path);
         
         // handle url:
         $url = $this->getUrl($with, $path);
         
-        // handle image width and height:
-        [$width, $height] = $this->getImageWidthAndHeight($with, $url, $mimeType);
-        
-        $stream = $this->getStream($with, $path);
+        // handle stream:
+        $stream = $this->getStream($with, $path);        
         
         // we check if file exist if stream is null:
         if (is_null($stream)) {
@@ -85,10 +88,27 @@ class FileFactory implements FileFactoryInterface
             }
         }
         
+        // handle image width and height:
+        [$width, $height] = $this->getImageWidthAndHeight($with, $mimeType, $url, $stream);
+        
+        // handle size:
+        $size = null;
+        
+        if ($stream) {
+            $size = $stream->getSize();
+        } elseif (in_array('size', $with)) {
+            try {
+                $size = $this->flysystem->fileSize($path);
+            } catch (FilesystemException|UnableToRetrieveMetadata $e) {
+                $size = null;
+            }
+        }
+        
         return new File(
             path: $this->pathNormalizer->normalizePath($path),
             stream: $stream,
             mimeType: $mimeType,
+            size: $size,
             width: $width,
             height: $height,
             lastModified: $this->getLastModified($with, $path),
@@ -107,14 +127,20 @@ class FileFactory implements FileFactoryInterface
      */
     public function createFileFromFileAttributes(FileAttributes $attributes, array $with = []): FileInterface
     {
+        if (in_array('width', $with) || in_array('height', $with)) {
+            $with[] = 'mimeType';
+            $with[] = 'stream';
+        }
+        
+        if (in_array('size', $with)) {
+            $with[] = 'stream';
+        }
+        
         // handle mimeType:
         $mimeType = $attributes->mimeType() ?: $this->getMimeType($with, $attributes->path());
 
         // handle url:
         $url = $this->getUrl($with, $attributes->path());
-        
-        // handle image width and height:
-        [$width, $height] = $this->getImageWidthAndHeight($with, $url, $mimeType);
         
         // handle stream:
         try {
@@ -122,6 +148,9 @@ class FileFactory implements FileFactoryInterface
         } catch (FileCreateException $e) {
             $stream = null;
         }
+        
+        // handle image width and height:
+        [$width, $height] = $this->getImageWidthAndHeight($with, $mimeType, $url, $stream);
 
         return new File(
             path: $attributes->path(),
@@ -242,13 +271,18 @@ class FileFactory implements FileFactoryInterface
      * Returns the image width and height.
      *
      * @param array<int, string> $with
-     * @param null|string $url
      * @param null|string $mimeType
+     * @param null|string $url
+     * @param null|StreamInterface $stream
      * @return array
      */
-    protected function getImageWidthAndHeight(array $with, null|string $url, null|string $mimeType): array
-    {
-        if (is_null($url) || is_null($mimeType)) {
+    protected function getImageWidthAndHeight(
+        array $with,
+        null|string $mimeType,
+        null|string $url,
+        null|StreamInterface $stream,
+    ): array {
+        if (is_null($mimeType)) {
             return [null, null];
         }
 
@@ -270,15 +304,20 @@ class FileFactory implements FileFactoryInterface
             ]
         )) {
             return [null, null];
-        }      
-        
-        // this might be quite slow!
-        $imageSize = @getimagesize($url);
-        
-        if (!is_array($imageSize)) {
-            return [null, null];
+        }
+
+        if ($stream) {
+            // this might be quite slow!
+            $imageSize = @getimagesizefromstring((string)$stream);
+            return is_array($imageSize) ? $imageSize : [null, null];
         }
         
-        return $imageSize;
+        if (!empty($url)) {
+            // this might be quite slow!
+            $imageSize = @getimagesize($url);
+            return is_array($imageSize) ? $imageSize : [null, null];
+        }
+        
+        return [null, null];
     }
 }
