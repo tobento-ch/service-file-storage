@@ -79,9 +79,17 @@ interface FileInterface
     /**
      * Returns the size.
      *
-     * @return null|int
+     * @return null|int|float
      */
-    public function size(): null|int;
+    public function size(): null|int|float;
+    
+    /**
+     * Returns a human-readable size.
+     *
+     * @param int $precision
+     * @return string
+     */
+    public function humanSize(int $precision = 2): string;
     
     /**
      * Returns the width.
@@ -110,6 +118,14 @@ interface FileInterface
      * @return null|string
      */
     public function url(): null|string;
+    
+    /**
+     * Returns a new instance with the given url.
+     *
+     * @param null|string $url
+     * @return static
+     */
+    public function withUrl(null|string $url): static;
     
     /**
      * Returns the visibility.

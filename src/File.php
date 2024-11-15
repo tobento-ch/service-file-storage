@@ -41,7 +41,7 @@ class File implements FileInterface
      * @param string $path
      * @param null|StreamInterface $stream
      * @param null|string $mimeType
-     * @param null|int $size
+     * @param null|int|float $size
      * @param null|int $width
      * @param null|int $height
      * @param null|int $lastModified
@@ -53,7 +53,7 @@ class File implements FileInterface
         protected string $path,
         protected null|StreamInterface $stream = null,
         protected null|string $mimeType = null,
-        protected null|int $size = null,
+        protected null|int|float $size = null,
         protected null|int $width = null,
         protected null|int $height = null,
         protected null|int $lastModified = null,
@@ -152,9 +152,9 @@ class File implements FileInterface
     /**
      * Returns the size.
      *
-     * @return null|int
+     * @return null|int|float
      */
-    public function size(): null|int
+    public function size(): null|int|float
     {
         if (is_int($this->size)) {
             return $this->size;
@@ -165,6 +165,29 @@ class File implements FileInterface
         }
         
         return $this->size;
+    }
+    
+    /**
+     * Returns a human-readable size.
+     *
+     * @param int $precision
+     * @return string
+     */
+    public function humanSize(int $precision = 2): string
+    {
+        $bytes = $this->size();
+        
+        if (is_null($bytes)) {
+            $bytes = 0;
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+        for ($i = 0; ($bytes / 1024) > 0.9 && ($i < count($units) - 1); $i++) {
+            $bytes /= 1024;
+        }
+        
+        return sprintf('%s %s', round($bytes, $precision), $units[$i]);
     }
     
     /**
@@ -205,6 +228,19 @@ class File implements FileInterface
     public function url(): null|string
     {
         return $this->url;
+    }
+    
+    /**
+     * Returns a new instance with the given url.
+     *
+     * @param null|string $url
+     * @return static
+     */
+    public function withUrl(null|string $url): static
+    {
+        $new = clone $this;
+        $new->url = $url;
+        return $new;
     }
     
     /**
