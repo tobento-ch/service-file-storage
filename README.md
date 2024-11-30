@@ -30,6 +30,10 @@ File storage interface for PHP applications using [Flysystem](https://github.com
         - [Add Storages](#add-storages)
         - [Get Storage](#get-storage)
         - [Default Storages](#default-storages)
+    - [Available Storages](#available-storages)
+        - [Flysystem Storage](#flysystem-storage)
+        - [Null Storage](#null-storage)
+        - [Read Only Storage Adapter](#read-only-storage-adapter)
     - [Interfaces](#interfaces)
         - [Storage Factory Interface](#storage-factory-interface)
         - [Storage Interface](#storage-interface)
@@ -38,8 +42,6 @@ File storage interface for PHP applications using [Flysystem](https://github.com
         - [Files Interface](#files-interface)
         - [Folder Interface](#folder-interface)
         - [Folders Interface](#folders-interface)
-    - [Flysystem](#flysystem)
-        - [Flysystem Storage](#flysystem-storage)
 - [Credits](#credits)
 ___
 
@@ -64,7 +66,7 @@ composer require tobento/service-file-storage
 
 ## Create Storage
 
-Check out the [Flysystem Storage](#flysystem-storage) to create the storage.
+Check out the [Available Storages](#available-storages) section to create storages.
 
 ## File
 
@@ -370,6 +372,68 @@ $storages->default('unknown');
 // throws StorageException
 ```
 
+## Available Storages
+
+### Flysystem Storage
+
+Check out the [League Flysystem](https://github.com/thephpleague/flysystem) to learn more about it.
+
+```php
+use Tobento\Service\FileStorage\Flysystem;
+use Tobento\Service\FileStorage\StorageInterface;
+use Nyholm\Psr7\Factory\Psr17Factory;
+
+$filesystem = new \League\Flysystem\Filesystem(
+    adapter: new \League\Flysystem\Local\LocalFilesystemAdapter(
+        location: __DIR__.'/root/directory/'
+    )
+);
+
+$storage = new Flysystem\Storage(
+    name: 'local',
+    flysystem: $filesystem,
+    fileFactory: new Flysystem\FileFactory(
+        flysystem: $filesystem,
+        streamFactory: new Psr17Factory()
+    ),
+);
+
+var_dump($storage instanceof StorageInterface);
+// bool(true)
+```
+
+### Null Storage
+
+```php
+use Tobento\Service\FileStorage\NullStorage;
+use Tobento\Service\FileStorage\StorageInterface;
+
+$storage = new NullStorage(name: 'null');
+
+var_dump($storage instanceof StorageInterface);
+// bool(true)
+```
+
+### Read Only Storage Adapter
+
+Any storage implementing the ```StorageInterface::class``` can be made read-only by decorating them using the ```ReadOnlyStorageAdapter```:
+
+```php
+use Tobento\Service\FileStorage\ReadOnlyStorageAdapter;
+use Tobento\Service\FileStorage\StorageInterface;
+
+$storage = new ReadOnlyStorageAdapter(
+    storage: $storage, // StorageInterface
+    
+    // You may throw exeptions if files are not found
+    // otherwise an "empty" file is returned.
+    throw: true, // false is default
+);
+
+var_dump($storage instanceof StorageInterface);
+// bool(true)
+```
+
 ## Interfaces
 
 ### Storage Factory Interface
@@ -465,6 +529,9 @@ var_dump($file->mimeType());
 
 var_dump($file->size());
 // int(20042) or NULL
+
+var_dump($file->humanSize());
+// string(5) "15 KB"
 
 var_dump($file->width());
 // int(450) or NULL
@@ -656,36 +723,6 @@ foreach($folders->all() as $folder) {
 
 // or just
 foreach($folders as $folder) {}
-```
-
-## Flysystem
-
-Check out the [League Flysystem](https://github.com/thephpleague/flysystem) to learn more about it.
-
-### Flysystem Storage
-
-```php
-use Tobento\Service\FileStorage\Flysystem;
-use Tobento\Service\FileStorage\StorageInterface;
-use Nyholm\Psr7\Factory\Psr17Factory;
-
-$filesystem = new \League\Flysystem\Filesystem(
-    adapter: new \League\Flysystem\Local\LocalFilesystemAdapter(
-        location: __DIR__.'/root/directory/'
-    )
-);
-
-$storage = new Flysystem\Storage(
-    name: 'local',
-    flysystem: $filesystem,
-    fileFactory: new Flysystem\FileFactory(
-        flysystem: $filesystem,
-        streamFactory: new Psr17Factory()
-    ),
-);
-
-var_dump($storage instanceof StorageInterface);
-// bool(true)
 ```
 
 # Credits
