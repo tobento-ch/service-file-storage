@@ -77,21 +77,19 @@ class Storages implements StoragesInterface
      */
     public function get(string $name): StorageInterface
     {
-        if (!$this->has($name))
-        {
+        if (!$this->has($name)) {
             throw new StorageException('Storage ['.$name.'] not found!');
         }
         
-        if (! $this->storages[$name] instanceof StorageInterface)
-        {
-            try {
-                $this->storages[$name] = $this->createStorage($name, $this->storages[$name]);
-            } catch(Throwable $e) {
-                throw new StorageException($e->getMessage(), 0, $e);
-            }
+        if ($this->storages[$name] instanceof StorageInterface) {
+            return $this->storages[$name];
         }
         
-        return $this->storages[$name];
+        try {
+            return $this->storages[$name] = $this->createStorage($name, $this->storages[$name]);
+        } catch(Throwable $e) {
+            throw new StorageException($e->getMessage(), 0, $e);
+        }
     }
     
     /**
