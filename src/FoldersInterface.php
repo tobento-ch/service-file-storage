@@ -16,7 +16,7 @@ namespace Tobento\Service\FileStorage;
 use IteratorAggregate;
 
 /**
- * FoldersInterface
+ * @extends IteratorAggregate<int, FolderInterface>
  */
 interface FoldersInterface extends IteratorAggregate
 {
