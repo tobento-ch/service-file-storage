@@ -250,7 +250,7 @@ class StorageTest extends TestCase
             ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
             ->files(path: '', recursive: true);
         
-        $this->assertSame(4, count($files->all()));
+        $this->assertSame(5, count($files->all()));
     }    
 
     public function testDeleteFileMethod()
