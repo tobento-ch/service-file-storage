@@ -172,6 +172,7 @@ class File implements FileInterface
      *
      * @param int $precision
      * @return string
+     * @psalm-suppress InvalidOperand
      */
     public function humanSize(int $precision = 2): string
     {
@@ -184,10 +185,11 @@ class File implements FileInterface
         $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
         for ($i = 0; ($bytes / 1024) > 0.9 && ($i < count($units) - 1); $i++) {
+            $bytes = $bytes;
             $bytes /= 1024;
         }
         
-        return sprintf('%s %s', round($bytes, $precision), $units[$i]);
+        return sprintf('%s %s', round($bytes, $precision), $units[$i] ?? '');
     }
     
     /**
