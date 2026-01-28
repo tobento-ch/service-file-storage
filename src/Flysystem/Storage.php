@@ -13,37 +13,33 @@ declare(strict_types=1);
 
 namespace Tobento\Service\FileStorage\Flysystem;
 
-use Tobento\Service\FileStorage\StorageInterface;
-use Tobento\Service\FileStorage\FilesInterface;
-use Tobento\Service\FileStorage\Files;
-use Tobento\Service\FileStorage\FileInterface;
-use Tobento\Service\FileStorage\File;
-use Tobento\Service\FileStorage\FoldersInterface;
-use Tobento\Service\FileStorage\Folders;
-use Tobento\Service\FileStorage\FolderInterface;
-use Tobento\Service\FileStorage\Folder;
-use Tobento\Service\FileStorage\Visibility;
-use Tobento\Service\FileStorage\StorageException;
-use Tobento\Service\FileStorage\FileException;
-use Tobento\Service\FileStorage\FileNotFoundException;
-use Tobento\Service\FileStorage\FileWriteException;
-use Tobento\Service\FileStorage\FolderException;
-use Tobento\Service\Filesystem;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\StorageAttributes;
-use League\Flysystem\FilesystemException;
-use League\Flysystem\UnableToWriteFile;
-use League\Flysystem\UnableToSetVisibility;
-use League\Flysystem\UnableToDeleteFile;
-use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToCreateDirectory;
 use League\Flysystem\UnableToDeleteDirectory;
+use League\Flysystem\UnableToDeleteFile;
+use League\Flysystem\UnableToMoveFile;
+use League\Flysystem\UnableToSetVisibility;
+use League\Flysystem\UnableToWriteFile;
 use Stringable;
+use Tobento\Service\FileStorage\File;
+use Tobento\Service\FileStorage\FileException;
+use Tobento\Service\FileStorage\FileInterface;
+use Tobento\Service\FileStorage\FileNotFoundException;
+use Tobento\Service\FileStorage\FileWriteException;
+use Tobento\Service\FileStorage\Files;
+use Tobento\Service\FileStorage\FilesInterface;
+use Tobento\Service\FileStorage\Folder;
+use Tobento\Service\FileStorage\FolderException;
+use Tobento\Service\FileStorage\FolderInterface;
+use Tobento\Service\FileStorage\Folders;
+use Tobento\Service\FileStorage\FoldersInterface;
+use Tobento\Service\FileStorage\StorageException;
+use Tobento\Service\FileStorage\StorageInterface;
+use Tobento\Service\Filesystem;
 
-/**
- * Storage
- */
 class Storage implements StorageInterface
 {
     /**
@@ -55,14 +51,25 @@ class Storage implements StorageInterface
      * Create a new Storage.
      *
      * @param string $name
-     * @param FilesystemOperator $flysystem
-     * @param FileFactoryInterface $fileFactory,
+     * @param FilesystemOperator $flysystem The Flysystem filesystem instance.
+     * @param FileFactoryInterface $fileFactory Factory for creating file objects.
+     * @param string $type The storage visibility type: 'public' or 'private'.
      */
     public function __construct(
         protected string $name,
         protected FilesystemOperator $flysystem,
         protected FileFactoryInterface $fileFactory,
-    ) {}
+        protected string $type = 'private',
+    ) {
+        if (!in_array($this->type, ['public', 'private'], true)) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    "Invalid storage type '%s'. Allowed values are 'public' or 'private'.",
+                    $this->type
+                )
+            );
+        }
+    }
     
     /**
      * Returns the storage name.
@@ -73,29 +80,62 @@ class Storage implements StorageInterface
     {
         return $this->name;
     }
+    
+    /**
+     * Returns the storage visibility type.
+     *
+     * Supported values:
+     * - 'public'
+     * - 'private'
+     *
+     * @return string  The visibility type of the storage.
+     */
+    public function type(): string
+    {
+        return $this->type;
+    }
+
+    /**
+     * Returns true if the storage is public.
+     *
+     * Public storages expose files via direct URLs and are suitable
+     * for features such as responsive images, variants, and public downloads.
+     *
+     * @return bool
+     */
+    public function isPublic(): bool
+    {
+        return $this->type === 'public';
+    }
+
+    /**
+     * Returns true if the storage is private.
+     *
+     * Private storages do not expose direct URLs. Files must be accessed
+     * through signed URLs or application-controlled routes.
+     *
+     * @return bool
+     */
+    public function isPrivate(): bool
+    {
+        return $this->type === 'private';
+    }
 
     /**
      * Write the contents of a file.
      *
      * @param string $path
      * @param mixed $content
-     * @param null|string $visibility
      * @return void
      * @throws FileWriteException
      */
-    public function write(string $path, mixed $content, null|string $visibility = null): void
+    public function write(string $path, mixed $content): void
     {
+        $config = [
+            'visibility' => \League\Flysystem\Visibility::PRIVATE,
+        ];
+        
         try {
-            $config = [];
-            
-            if ($visibility) {
-                $visibility = $visibility === Visibility::PUBLIC
-                    ? \League\Flysystem\Visibility::PUBLIC
-                    : \League\Flysystem\Visibility::PRIVATE;
-                
-                $config['visibility'] = $visibility;
-            }
-            
             switch (true) {
                 case $content instanceof Stringable:
                 case is_string($content):
@@ -136,7 +176,9 @@ class Storage implements StorageInterface
      */
     public function file(string $path): FileInterface
     {
-        return $this->fileFactory->createFileFromPath($path, $this->fileAttributes);
+        $file = $this->fileFactory->createFileFromPath($path, $this->fileAttributes);
+        
+        return $file->withStorageName($this->name());
     }
     
     /**
@@ -153,7 +195,8 @@ class Storage implements StorageInterface
                 return $attributes->isFile();
             })
             ->map(function(StorageAttributes $attributes): FileInterface {
-                return $this->fileFactory->createFileFromFileAttributes($attributes, $this->fileAttributes);
+                $file = $this->fileFactory->createFileFromFileAttributes($attributes, $this->fileAttributes);
+                return $file->withStorageName($this->name());
             });
         
         return new Files($files);
@@ -251,9 +294,9 @@ class Storage implements StorageInterface
             })
             ->map(function (StorageAttributes $attributes) {                
                 return new Folder(
+                    storageName: $this->name(),
                     path: $attributes->path(),
                     lastModified: $attributes->lastModified(),
-                    visibility: $attributes->visibility(),
                     metadata: $attributes->extraMetadata(),
                 );
             });
@@ -274,27 +317,6 @@ class Storage implements StorageInterface
             $this->flysystem->deleteDirectory($path);
         } catch (UnableToDeleteDirectory $e) {
             throw new FolderException($path, 'Deleting folder failed: '. $e->getMessage(), 0, $e);
-        }
-    }
-    
-    /**
-     * Set the visibility for the specified path.
-     *
-     * @param string $path
-     * @param string $visibility
-     * @return void
-     * @throws StorageException
-     */
-    public function setVisibility(string $path, string $visibility): void
-    {
-        $visibility = $visibility === Visibility::PUBLIC
-            ? \League\Flysystem\Visibility::PUBLIC
-            : \League\Flysystem\Visibility::PRIVATE;
-        
-        try {
-            $this->flysystem->setVisibility($path, $visibility);
-        } catch (UnableToSetVisibility $e) {
-            throw new StorageException('Setting visibility failed: '. $e->getMessage(), 0, $e);
         }
     }
     
