@@ -38,17 +38,56 @@ class ReadOnlyStorageAdapter implements StorageInterface
     {
         return $this->storage->name();
     }
+    
+    /**
+     * Returns the storage visibility type.
+     *
+     * Supported values:
+     * - 'public'
+     * - 'private'
+     *
+     * @return string  The visibility type of the storage.
+     */
+    public function type(): string
+    {
+        return $this->storage->type();
+    }
+
+    /**
+     * Returns true if the storage is public.
+     *
+     * Public storages expose files via direct URLs and are suitable
+     * for features such as responsive images, variants, and public downloads.
+     *
+     * @return bool
+     */
+    public function isPublic(): bool
+    {
+        return $this->storage->isPublic();
+    }
+
+    /**
+     * Returns true if the storage is private.
+     *
+     * Private storages do not expose direct URLs. Files must be accessed
+     * through signed URLs or application-controlled routes.
+     *
+     * @return bool
+     */
+    public function isPrivate(): bool
+    {
+        return $this->storage->isPrivate();
+    }
 
     /**
      * Write the contents of a file.
      *
      * @param string $path
      * @param mixed $content
-     * @param null|string $visibility
      * @return void
      * @throws FileWriteException
      */
-    public function write(string $path, mixed $content, null|string $visibility = null): void
+    public function write(string $path, mixed $content): void
     {
         throw new FileWriteException(
             path: $path,
@@ -85,6 +124,7 @@ class ReadOnlyStorageAdapter implements StorageInterface
             }
             
             return new File(
+                storageName: $this->storage->name(),
                 path: $path,
                 url: '',
                 width: 0,
@@ -188,19 +228,6 @@ class ReadOnlyStorageAdapter implements StorageInterface
     public function deleteFolder(string $path): void
     {
         throw new FolderException(path: $path, message: sprintf('Storage %s is readonly', $this->name()));
-    }
-    
-    /**
-     * Set the visibility for the specified path.
-     *
-     * @param string $path
-     * @param string $visibility
-     * @return void
-     * @throws StorageException
-     */
-    public function setVisibility(string $path, string $visibility): void
-    {
-        throw new FileException(path: $path, message: sprintf('Storage %s is readonly', $this->name()));
     }
     
     /**
