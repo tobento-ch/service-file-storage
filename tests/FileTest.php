@@ -19,16 +19,14 @@ use Tobento\Service\FileStorage\FileInterface;
 use Psr\Http\Message\StreamInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
 
-/**
- * FileTest
- */
 class FileTest extends TestCase
 {
     public function testWithPathOnly()
     {
-        $file = new File(path: 'folder/file.txt');
+        $file = new File(storageName: 'public', path: 'folder/file.txt');
         
         $this->assertInstanceof(FileInterface::class, $file);
+        $this->assertSame('public', $file->storageName());
         $this->assertSame('folder/file.txt', $file->path());
         $this->assertSame('file.txt', $file->name());
         $this->assertSame('file', $file->filename());
@@ -42,14 +40,22 @@ class FileTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertSame(null, $file->lastModified());
         $this->assertSame(null, $file->url());
-        $this->assertSame(null, $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }
     
+    public function testWithStorageNameMethod()
+    {
+        $file = new File(storageName: 'public', path: 'file.txt');
+        $newFile = $file->withStorageName('foo');
+        
+        $this->assertFalse($file === $newFile);
+        $this->assertSame('foo', $newFile->storageName());
+    }
+    
     public function testWithoutFileExtension()
     {
-        $file = new File(path: 'folder/file');
+        $file = new File(storageName: 'public', path: 'folder/file');
         
         $this->assertSame('folder/file', $file->path());
         $this->assertSame('file', $file->name());
@@ -60,7 +66,7 @@ class FileTest extends TestCase
     
     public function testWithoutFilename()
     {
-        $file = new File(path: 'folder/.htaccess');
+        $file = new File(storageName: 'public', path: 'folder/.htaccess');
         
         $this->assertSame('folder/.htaccess', $file->path());
         $this->assertSame('.htaccess', $file->name());
@@ -72,6 +78,7 @@ class FileTest extends TestCase
     public function testAllWithoutStream()
     {
         $file = new File(
+            storageName: 'public',
             path: 'file.txt',
             stream: null,
             mimeType: 'text/plain',
@@ -80,7 +87,6 @@ class FileTest extends TestCase
             height: 30,
             lastModified: 1672822057,
             url: 'https::www.example.com/path',
-            visibility: 'private',
             metadata: ['foo' => 'bar'],
         );
         
@@ -98,21 +104,20 @@ class FileTest extends TestCase
         $this->assertSame(30, $file->height());
         $this->assertSame(1672822057, $file->lastModified());
         $this->assertSame('https::www.example.com/path', $file->url());
-        $this->assertSame('private', $file->visibility());
         $this->assertSame(['foo' => 'bar'], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }    
     
     public function testWithStream()
     {
-        $file = new File(path: 'file.txt', stream: null);
+        $file = new File(storageName: 'public', path: 'file.txt', stream: null);
         
         $this->assertSame(null, $file->stream());
         $this->assertSame(null, $file->content());
         $this->assertSame(null, $file->size());
         
-        $stream = (new Psr17Factory())->createStream('content');
-        $file = new File(path: 'file.txt', stream: $stream);
+        $stream = new Psr17Factory()->createStream('content');
+        $file = new File(storageName: 'public', path: 'file.txt', stream: $stream);
         
         $this->assertInstanceof(StreamInterface::class, $file->stream());
         $this->assertSame('content', $file->content());
@@ -125,7 +130,7 @@ class FileTest extends TestCase
         
         foreach($mimes as $type) {
             
-            $file = new File(path: 'file.jpg', mimeType: $type);
+            $file = new File(storageName: 'public', path: 'file.jpg', mimeType: $type);
 
             $this->assertTrue($file->isHtmlImage());            
         }
@@ -133,7 +138,7 @@ class FileTest extends TestCase
     
     public function testWithUrlMethod()
     {
-        $file = new File(path: 'file.txt', url: 'https::www.example.com/path');
+        $file = new File(storageName: 'public', path: 'file.txt', url: 'https::www.example.com/path');
         $newFile = $file->withUrl('https::www.example.com/new-path');
         
         $this->assertFalse($file === $newFile);
@@ -143,20 +148,20 @@ class FileTest extends TestCase
     
     public function testHumanSizeMethod()
     {
-        $this->assertSame('0 B', (new File(path: 'f.txt'))->humanSize());
-        $this->assertSame('0 B', (new File(path: 'f.txt', size: 0))->humanSize());
-        $this->assertSame('10 B', (new File(path: 'f.txt', size: 10))->humanSize());
-        $this->assertSame('1 KB', (new File(path: 'f.txt', size: 1024))->humanSize());
-        $this->assertSame('1 MB', (new File(path: 'f.txt', size: 1024 ** 2))->humanSize());
-        $this->assertSame('1 GB', (new File(path: 'f.txt', size: 1024 ** 3))->humanSize());
-        $this->assertSame('1 TB', (new File(path: 'f.txt', size: 1024 ** 4))->humanSize());
-        $this->assertSame('1 PB', (new File(path: 'f.txt', size: 1024 ** 5))->humanSize());
-        $this->assertSame('1 EB', (new File(path: 'f.txt', size: 1024 ** 6))->humanSize());
-        $this->assertSame('1 ZB', (new File(path: 'f.txt', size:1024 ** 7))->humanSize());
-        $this->assertSame('1 YB', (new File(path: 'f.txt', size: 1024 ** 8))->humanSize());
-        $this->assertSame('1024 YB', (new File(path: 'f.txt', size: 1024 ** 9))->humanSize());
-        $this->assertSame('1.07 KB', (new File(path: 'f.txt', size: 1100))->humanSize());
-        $this->assertSame('1.1 KB', (new File(path: 'f.txt', size: 1100))->humanSize(precision: 1));
-        $this->assertSame('1.074 KB', (new File(path: 'f.txt', size: 1100))->humanSize(precision: 3));
+        $this->assertSame('0 B', new File(storageName: 'public', path: 'f.txt')->humanSize());
+        $this->assertSame('0 B', new File(storageName: 'public', path: 'f.txt', size: 0)->humanSize());
+        $this->assertSame('10 B', new File(storageName: 'public', path: 'f.txt', size: 10)->humanSize());
+        $this->assertSame('1 KB', new File(storageName: 'public', path: 'f.txt', size: 1024)->humanSize());
+        $this->assertSame('1 MB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 2)->humanSize());
+        $this->assertSame('1 GB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 3)->humanSize());
+        $this->assertSame('1 TB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 4)->humanSize());
+        $this->assertSame('1 PB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 5)->humanSize());
+        $this->assertSame('1 EB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 6)->humanSize());
+        $this->assertSame('1 ZB', new File(storageName: 'public', path: 'f.txt', size:1024 ** 7)->humanSize());
+        $this->assertSame('1 YB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 8)->humanSize());
+        $this->assertSame('1024 YB', new File(storageName: 'public', path: 'f.txt', size: 1024 ** 9)->humanSize());
+        $this->assertSame('1.07 KB', new File(storageName: 'public', path: 'f.txt', size: 1100)->humanSize());
+        $this->assertSame('1.1 KB', new File(storageName: 'public', path: 'f.txt', size: 1100)->humanSize(precision: 1));
+        $this->assertSame('1.074 KB', new File(storageName: 'public', path: 'f.txt', size: 1100)->humanSize(precision: 3));
     }
 }
