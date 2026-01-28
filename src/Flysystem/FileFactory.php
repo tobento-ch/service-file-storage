@@ -28,9 +28,6 @@ use League\Flysystem\UnableToGeneratePublicUrl;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 
-/**
- * FileFactory
- */
 class FileFactory implements FileFactoryInterface
 {
     /**
@@ -105,6 +102,7 @@ class FileFactory implements FileFactoryInterface
         }
         
         return new File(
+            storageName: '',
             path: $this->pathNormalizer->normalizePath($path),
             stream: $stream,
             mimeType: $mimeType,
@@ -113,7 +111,6 @@ class FileFactory implements FileFactoryInterface
             height: $height,
             lastModified: $this->getLastModified($with, $path),
             url: $url,
-            visibility: $this->getVisibility($with, $path),
         );
     }
     
@@ -153,6 +150,7 @@ class FileFactory implements FileFactoryInterface
         [$width, $height] = $this->getImageWidthAndHeight($with, $mimeType, $url, $stream);
 
         return new File(
+            storageName: '',
             path: $attributes->path(),
             stream: $stream,
             mimeType: $mimeType,
@@ -161,7 +159,6 @@ class FileFactory implements FileFactoryInterface
             height: $height,
             lastModified: $attributes->lastModified(),
             url: $url,
-            visibility: $attributes->visibility(),
             metadata: $attributes->extraMetadata(),
         );
     }
@@ -243,26 +240,6 @@ class FileFactory implements FileFactoryInterface
         try {
             return $this->flysystem->publicUrl($path);
         } catch (UnableToGeneratePublicUrl $e) {
-            return null;
-        }
-    }
-    
-    /**
-     * Returns the visibility.
-     *
-     * @param array<int, string> $with
-     * @param string $path
-     * @return null|string
-     */
-    protected function getVisibility(array $with, string $path): null|string
-    {
-        if (!in_array('visibility', $with)) {
-            return null;
-        }
-
-        try {
-            return $this->flysystem->visibility($path);
-        } catch (UnableToRetrieveMetadata $e) {
             return null;
         }
     }
