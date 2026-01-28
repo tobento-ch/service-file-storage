@@ -19,15 +19,12 @@ use Tobento\Service\FileStorage\FilesInterface;
 use Tobento\Service\FileStorage\File;
 use Tobento\Service\FileStorage\FileInterface;
 
-/**
- * FilesTest
- */
 class FilesTest extends TestCase
 {
     public function testCreateFiles()
     {
         $files = new Files([
-            new File(path: 'file.txt')
+            new File(storageName: 'public', path: 'file.txt')
         ]);
         
         $this->assertInstanceof(FilesInterface::class, $files);
@@ -36,8 +33,8 @@ class FilesTest extends TestCase
     public function testFilterMethod()
     {
         $files = new Files([
-            new File(path: 'file.txt', mimeType: 'text/plain'),
-            new File(path: 'image.jpg', mimeType: 'image/jpeg'),
+            new File(storageName: 'public', path: 'file.txt', mimeType: 'text/plain'),
+            new File(storageName: 'public', path: 'image.jpg', mimeType: 'image/jpeg'),
         ]);
         
         $filesNew = $files->filter(
@@ -51,9 +48,9 @@ class FilesTest extends TestCase
     public function testSortMethod()
     {
         $files = new Files([
-            new File(path: 'file.txt'),
-            new File(path: 'bar.txt'),
-            new File(path: 'image.jpg'),
+            new File(storageName: 'public', path: 'file.txt'),
+            new File(storageName: 'public', path: 'bar.txt'),
+            new File(storageName: 'public', path: 'image.jpg'),
         ]);
         
         $paths = [];
@@ -88,8 +85,8 @@ class FilesTest extends TestCase
     public function testAllMethod()
     {
         $files = new Files([
-            new File(path: 'file.txt'),
-            new File(path: 'image.jpg'),
+            new File(storageName: 'public', path: 'file.txt'),
+            new File(storageName: 'public', path: 'image.jpg'),
         ]);
         
         $this->assertSame(2, count($files->all()));
@@ -98,8 +95,8 @@ class FilesTest extends TestCase
     public function testIteration()
     {
         $files = new Files([
-            new File(path: 'file.txt'),
-            new File(path: 'image.jpg'),
+            new File(storageName: 'public', path: 'file.txt'),
+            new File(storageName: 'public', path: 'image.jpg'),
         ]);
         
         foreach($files as $file) {
