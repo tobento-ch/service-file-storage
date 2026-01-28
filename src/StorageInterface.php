@@ -24,17 +24,47 @@ interface StorageInterface
      * @return string
      */
     public function name(): string;
+    
+    /**
+     * Returns the storage visibility type.
+     *
+     * Supported values:
+     * - 'public'
+     * - 'private'
+     *
+     * @return string  The visibility type of the storage.
+     */
+    public function type(): string;
+
+    /**
+     * Returns true if the storage is public.
+     *
+     * Public storages expose files via direct URLs and are suitable
+     * for features such as responsive images, variants, and public downloads.
+     *
+     * @return bool
+     */
+    public function isPublic(): bool;
+
+    /**
+     * Returns true if the storage is private.
+     *
+     * Private storages do not expose direct URLs. Files must be accessed
+     * through signed URLs or application-controlled routes.
+     *
+     * @return bool
+     */
+    public function isPrivate(): bool;
 
     /**
      * Write the contents of a file.
      *
      * @param string $path
      * @param mixed $content
-     * @param null|string $visibility
      * @return void
      * @throws FileWriteException
      */
-    public function write(string $path, mixed $content, null|string $visibility = null): void;
+    public function write(string $path, mixed $content): void;
     
     /**
      * Returns true if file exists, otherwise false.
@@ -125,16 +155,6 @@ interface StorageInterface
      * @throws FolderException
      */
     public function deleteFolder(string $path): void;
-    
-    /**
-     * Set the visibility for the specified path.
-     *
-     * @param string $path
-     * @param string $visibility
-     * @return void
-     * @throws StorageException
-     */
-    public function setVisibility(string $path, string $visibility): void;
     
     /**
      * Returns a new instance with the specified attribute.
