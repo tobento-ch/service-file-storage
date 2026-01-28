@@ -58,10 +58,11 @@ class FileFactoryTest extends TestCase
         
         $file = $fileFactory->createFileFromPath(
             path: 'foo.txt',
-            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility'],
+            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url'],
         );
         
         $this->assertInstanceof(FileInterface::class, $file);
+        $this->assertSame('', $file->storageName());
         $this->assertSame('foo.txt', $file->path());
         $this->assertSame('foo.txt', $file->name());
         $this->assertSame('foo', $file->filename());
@@ -75,7 +76,6 @@ class FileFactoryTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/foo.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());        
     }
@@ -89,10 +89,11 @@ class FileFactoryTest extends TestCase
         
         $file = $fileFactory->createFileFromPath(
             path: 'image.jpg',
-            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility'],
+            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url'],
         );
         
         $this->assertInstanceof(FileInterface::class, $file);
+        $this->assertSame('', $file->storageName());
         $this->assertSame('image.jpg', $file->path());
         $this->assertSame('image.jpg', $file->name());
         $this->assertSame('image', $file->filename());
@@ -106,7 +107,6 @@ class FileFactoryTest extends TestCase
         $this->assertSame(150, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertTrue($file->isHtmlImage());        
     }
@@ -140,9 +140,6 @@ class FileFactoryTest extends TestCase
         
         $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['url']);
         $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
-        
-        $file = $fileFactory->createFileFromPath(path: 'image.jpg', with: ['visibility']);
-        $this->assertSame('public', $file->visibility());
     }
     
     public function testCreateFileFromFileAttributesMethod()
@@ -155,15 +152,15 @@ class FileFactoryTest extends TestCase
         $attributes = new FileAttributes(
             path: 'foo.txt',
             lastModified: 1673349666,
-            visibility: 'public',
         );
         
         $file = $fileFactory->createFileFromFileAttributes(
             attributes: $attributes,
-            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility'],
+            with: ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url'],
         );
         
         $this->assertInstanceof(FileInterface::class, $file);
+        $this->assertSame('', $file->storageName());
         $this->assertSame('foo.txt', $file->path());
         $this->assertSame('foo.txt', $file->name());
         $this->assertSame('foo', $file->filename());
@@ -177,7 +174,6 @@ class FileFactoryTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/foo.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());        
     }
@@ -232,11 +228,5 @@ class FileFactoryTest extends TestCase
             with: ['url'],
         );
         $this->assertSame('https://www.example.com/path/image.jpg', $file->url());
-        
-        $file = $fileFactory->createFileFromFileAttributes(
-            attributes: new FileAttributes(path: 'image.jpg', visibility: 'public'),
-            with: ['visibility'],
-        );
-        $this->assertSame('public', $file->visibility());
     }
 }
