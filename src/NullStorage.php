@@ -13,19 +13,27 @@ declare(strict_types=1);
  
 namespace Tobento\Service\FileStorage;
 
-/**
- * NullStorage
- */
 class NullStorage implements StorageInterface
 {
     /**
      * Create a new NullStorage instance.
      *
      * @param string $name
+     * @param string $type The storage visibility type: 'public' or 'private'.
      */
     final public function __construct(
         protected string $name = 'null',
-    ) {}
+        protected string $type = 'private',
+    ) {
+        if (!in_array($this->type, ['public', 'private'], true)) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    "Invalid storage type '%s'. Allowed values are 'public' or 'private'.",
+                    $this->type
+                )
+            );
+        }
+    }
     
     /**
      * Returns the storage name.
@@ -36,17 +44,56 @@ class NullStorage implements StorageInterface
     {
         return $this->name;
     }
+    
+    /**
+     * Returns the storage visibility type.
+     *
+     * Supported values:
+     * - 'public'
+     * - 'private'
+     *
+     * @return string  The visibility type of the storage.
+     */
+    public function type(): string
+    {
+        return $this->type;
+    }
+
+    /**
+     * Returns true if the storage is public.
+     *
+     * Public storages expose files via direct URLs and are suitable
+     * for features such as responsive images, variants, and public downloads.
+     *
+     * @return bool
+     */
+    public function isPublic(): bool
+    {
+        return $this->type === 'public';
+    }
+
+    /**
+     * Returns true if the storage is private.
+     *
+     * Private storages do not expose direct URLs. Files must be accessed
+     * through signed URLs or application-controlled routes.
+     *
+     * @return bool
+     */
+    public function isPrivate(): bool
+    {
+        return $this->type === 'private';
+    }
 
     /**
      * Write the contents of a file.
      *
      * @param string $path
      * @param mixed $content
-     * @param null|string $visibility
      * @return void
      * @throws FileWriteException
      */
-    public function write(string $path, mixed $content, null|string $visibility = null): void
+    public function write(string $path, mixed $content): void
     {
         //
     }
@@ -72,6 +119,7 @@ class NullStorage implements StorageInterface
     public function file(string $path): FileInterface
     {
         return new File(
+            storageName: $this->name(),
             path: $path,
             url: '',
             width: 0,
@@ -172,19 +220,6 @@ class NullStorage implements StorageInterface
      * @throws FolderException
      */
     public function deleteFolder(string $path): void
-    {
-        //
-    }
-    
-    /**
-     * Set the visibility for the specified path.
-     *
-     * @param string $path
-     * @param string $visibility
-     * @return void
-     * @throws StorageException
-     */
-    public function setVisibility(string $path, string $visibility): void
     {
         //
     }
