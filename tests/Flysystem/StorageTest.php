@@ -19,7 +19,6 @@ use Tobento\Service\FileStorage\FileInterface;
 use Tobento\Service\FileStorage\FilesInterface;
 use Tobento\Service\FileStorage\FolderInterface;
 use Tobento\Service\FileStorage\FoldersInterface;
-use Tobento\Service\FileStorage\Visibility;
 use Tobento\Service\FileStorage\Flysystem;
 use Tobento\Service\FileStorage\FileWriteException;
 use Tobento\Service\FileStorage\FileException;
@@ -28,9 +27,6 @@ use Tobento\Service\Filesystem\File;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Http\Message\StreamInterface;
 
-/**
- * StorageTest
- */
 class StorageTest extends TestCase
 {
     public function setUp(): void
@@ -43,7 +39,7 @@ class StorageTest extends TestCase
         (new Dir())->delete(__DIR__.'/../tmp/');
     }
     
-    protected function createStorage(string $name, string $folder): StorageInterface
+    protected function createStorage(string $name, string $folder, string $type = 'private'): StorageInterface
     {
         $filesystem = new \League\Flysystem\Filesystem(
             adapter: new \League\Flysystem\Local\LocalFilesystemAdapter(
@@ -59,6 +55,7 @@ class StorageTest extends TestCase
                 flysystem: $filesystem,
                 streamFactory: new Psr17Factory()
             ),
+            type: $type,
         );
     }
     
@@ -67,7 +64,38 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'tmp');
         
         $this->assertSame('local', $storage->name());
-    }    
+    }
+    
+    public function testDefaultTypeIsPrivate()
+    {
+        $storage = $this->createStorage(name: 'local', folder: 'tmp', type: 'private');
+        $this->assertSame('private', $storage->type());
+        $this->assertTrue($storage->isPrivate());
+        $this->assertFalse($storage->isPublic());
+    }
+
+    public function testCanSetTypeToPublic()
+    {
+        $storage = $this->createStorage(name: 'local', folder: 'tmp', type: 'public');
+        $this->assertSame('public', $storage->type());
+        $this->assertTrue($storage->isPublic());
+        $this->assertFalse($storage->isPrivate());
+    }
+
+    public function testCanSetTypeToPrivate()
+    {
+        $storage = $this->createStorage(name: 'local', folder: 'tmp', type: 'private');
+        $this->assertSame('private', $storage->type());
+        $this->assertTrue($storage->isPrivate());
+        $this->assertFalse($storage->isPublic());
+    }
+
+    public function testInvalidTypeThrowsException()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->createStorage(name: 'local', folder: 'tmp', type: 'invalid');
+    }
     
     public function testWriteMethodWithString()
     {
@@ -141,10 +169,11 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'src');
         
         $file = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->file(path: 'foo.txt');
         
         $this->assertInstanceOf(FileInterface::class, $file);
+        $this->assertSame('local', $file->storageName());
         $this->assertSame('foo.txt', $file->path());
         $this->assertSame('foo.txt', $file->name());
         $this->assertSame('foo', $file->filename());
@@ -158,7 +187,6 @@ class StorageTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/foo.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }
@@ -168,10 +196,11 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'src');
         
         $file = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->file(path: 'foo/subfoo/subfoo.txt');
         
         $this->assertInstanceOf(FileInterface::class, $file);
+        $this->assertSame('local', $file->storageName());
         $this->assertSame('foo/subfoo/subfoo.txt', $file->path());
         $this->assertSame('subfoo.txt', $file->name());
         $this->assertSame('subfoo', $file->filename());
@@ -185,7 +214,6 @@ class StorageTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/foo/subfoo/subfoo.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }
@@ -195,13 +223,14 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'src');
         
         $files = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->files(path: '');
         
         $this->assertInstanceOf(FilesInterface::class, $files);
         $this->assertSame(2, count($files->all()));
         
         $file = $files->all()[0];
+        $this->assertSame('local', $file->storageName());
         $this->assertSame('foo.txt', $file->path());
         $this->assertSame('foo.txt', $file->name());
         $this->assertSame('foo', $file->filename());
@@ -215,7 +244,6 @@ class StorageTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/path/foo.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());        
     }
@@ -225,12 +253,13 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'src');
         
         $files = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->files(path: 'foo');
         
         $this->assertSame(1, count($files->all()));
         
         $file = $files->all()[0];
+        $this->assertSame('local', $file->storageName());
         $this->assertSame('foo/lorem.txt', $file->path());
         $this->assertSame('lorem.txt', $file->name());
         $this->assertSame('lorem', $file->filename());
@@ -247,7 +276,7 @@ class StorageTest extends TestCase
         $storage = $this->createStorage(name: 'local', folder: 'src');
         
         $files = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->files(path: '', recursive: true);
         
         $this->assertSame(5, count($files->all()));
@@ -329,11 +358,11 @@ class StorageTest extends TestCase
         $this->assertSame(2, count($folders->all()));
         
         $folder = $folders->all()[0];
+        $this->assertSame('local', $folder->storageName());
         $this->assertSame('bar', $folder->path());
         $this->assertSame('', $folder->parentPath());
         $this->assertSame('bar', $folder->name());
         $this->assertTrue(is_int($folder->lastModified()));
-        $this->assertSame('public', $folder->visibility());
         $this->assertSame([], $folder->metadata());
     }
 
@@ -349,6 +378,7 @@ class StorageTest extends TestCase
         $this->assertSame(1, count($folders->all()));
 
         $folder = $folders->all()[0];
+        $this->assertSame('local', $folder->storageName());
         $this->assertSame('foo/subfoo', $folder->path());
         $this->assertSame('foo', $folder->parentPath());
         $this->assertSame('subfoo', $folder->name());
@@ -378,26 +408,4 @@ class StorageTest extends TestCase
         
         $this->assertFalse($storage->folderExists('foo/bar'));
     }
-    
-    public function testSetVisibility()
-    {
-        $storage = $this->createStorage(name: 'local', folder: 'tmp');
-        
-        $storage->write(path: 'file.txt', content: 'lorem');
-        
-        $public = Visibility::PUBLIC;
-        $private = Visibility::PRIVATE;
-        
-        $storage->setVisibility(
-            path: 'file.txt',
-            visibility: $public
-        );
-        
-        $storage->setVisibility(
-            path: 'file.txt',
-            visibility: $private
-        );        
-
-        $this->assertTrue(true);
-    }    
 }
