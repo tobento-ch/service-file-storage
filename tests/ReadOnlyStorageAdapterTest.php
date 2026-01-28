@@ -26,7 +26,6 @@ use Tobento\Service\FileStorage\FoldersInterface;
 use Tobento\Service\FileStorage\NullStorage;
 use Tobento\Service\FileStorage\ReadOnlyStorageAdapter;
 use Tobento\Service\FileStorage\StorageInterface;
-use Tobento\Service\FileStorage\Visibility;
 use Tobento\Service\Filesystem\Dir;
 
 class ReadOnlyStorageAdapterTest extends TestCase
@@ -41,7 +40,7 @@ class ReadOnlyStorageAdapterTest extends TestCase
         (new Dir())->delete(__DIR__.'/tmp/');
     }
     
-    protected function createStorage(bool $throw = false): ReadOnlyStorageAdapter
+    protected function createStorage(bool $throw = false, string $type = 'private'): ReadOnlyStorageAdapter
     {
         $filesystem = new \League\Flysystem\Filesystem(
             adapter: new \League\Flysystem\Local\LocalFilesystemAdapter(
@@ -57,6 +56,7 @@ class ReadOnlyStorageAdapterTest extends TestCase
                 flysystem: $filesystem,
                 streamFactory: new Psr17Factory()
             ),
+            type: $type,
         );
 
         $storage->write(path: 'file.txt', content: 'content');
@@ -76,6 +76,24 @@ class ReadOnlyStorageAdapterTest extends TestCase
     public function testNameMethod()
     {
         $this->assertSame('uploads', $this->createStorage()->name());
+    }
+    
+    public function testTypeMethodPublic()
+    {
+        $storage = $this->createStorage(type: 'public');
+        
+        $this->assertSame('public', $storage->type());
+        $this->assertFalse($storage->isPrivate());
+        $this->assertTrue($storage->isPublic());
+    }
+    
+    public function testTypeMethodPrivate()
+    {
+        $storage = $this->createStorage(type: 'private');
+        
+        $this->assertSame('private', $storage->type());
+        $this->assertTrue($storage->isPrivate());
+        $this->assertFalse($storage->isPublic());
     }
     
     public function testWriteMethod()
@@ -100,10 +118,11 @@ class ReadOnlyStorageAdapterTest extends TestCase
         $storage = $this->createStorage();
         
         $file = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->file(path: 'file.txt');
         
         $this->assertInstanceOf(FileInterface::class, $file);
+        $this->assertSame('uploads', $file->storageName());
         $this->assertSame('file.txt', $file->path());
         $this->assertSame('file.txt', $file->name());
         $this->assertSame('file', $file->filename());
@@ -117,7 +136,6 @@ class ReadOnlyStorageAdapterTest extends TestCase
         $this->assertSame(null, $file->height());
         $this->assertTrue(is_int($file->lastModified()));
         $this->assertSame('https://www.example.com/files/file.txt', $file->url());
-        $this->assertSame('public', $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }
@@ -127,7 +145,7 @@ class ReadOnlyStorageAdapterTest extends TestCase
         $storage = $this->createStorage();
         
         $files = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->files(path: '');
         
         $this->assertInstanceOf(FilesInterface::class, $files);
@@ -200,18 +218,5 @@ class ReadOnlyStorageAdapterTest extends TestCase
         
         $storage = $this->createStorage();
         $storage->deleteFolder(path: 'foo/bar');
-    }
-    
-    public function testSetVisibility()
-    {
-        $this->expectException(FileException::class);
-        $this->expectExceptionMessage('Storage uploads is readonly');
-        
-        $storage = $this->createStorage();
-        
-        $storage->setVisibility(
-            path: 'file.txt',
-            visibility: Visibility::PUBLIC
-        );
     }
 }

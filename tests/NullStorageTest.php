@@ -19,7 +19,6 @@ use Tobento\Service\FileStorage\FileInterface;
 use Tobento\Service\FileStorage\FilesInterface;
 use Tobento\Service\FileStorage\FoldersInterface;
 use Tobento\Service\FileStorage\StorageInterface;
-use Tobento\Service\FileStorage\Visibility;
 
 class NullStorageTest extends TestCase
 {
@@ -32,6 +31,37 @@ class NullStorageTest extends TestCase
     {
         $this->assertSame('null', (new NullStorage())->name());
         $this->assertSame('custom', (new NullStorage(name: 'custom'))->name());
+    }
+    
+    public function testDefaultTypeIsPrivate()
+    {
+        $storage = new NullStorage();
+        $this->assertSame('private', $storage->type());
+        $this->assertTrue($storage->isPrivate());
+        $this->assertFalse($storage->isPublic());
+    }
+
+    public function testCanSetTypeToPublic()
+    {
+        $storage = new NullStorage(name: 'null', type: 'public');
+        $this->assertSame('public', $storage->type());
+        $this->assertTrue($storage->isPublic());
+        $this->assertFalse($storage->isPrivate());
+    }
+
+    public function testCanSetTypeToPrivate()
+    {
+        $storage = new NullStorage(name: 'null', type: 'private');
+        $this->assertSame('private', $storage->type());
+        $this->assertTrue($storage->isPrivate());
+        $this->assertFalse($storage->isPublic());
+    }
+
+    public function testInvalidTypeThrowsException()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new NullStorage(name: 'null', type: 'invalid-type');
     }
     
     public function testWriteMethod()
@@ -58,10 +88,11 @@ class NullStorageTest extends TestCase
         $storage = new NullStorage();
         
         $file = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->file(path: 'foo.txt');
         
         $this->assertInstanceOf(FileInterface::class, $file);
+        $this->assertSame('null', $file->storageName());
         $this->assertSame('foo.txt', $file->path());
         $this->assertSame('foo.txt', $file->name());
         $this->assertSame('foo', $file->filename());
@@ -75,7 +106,6 @@ class NullStorageTest extends TestCase
         $this->assertSame(0, $file->height());
         $this->assertSame(null, $file->lastModified());
         $this->assertSame('', $file->url());
-        $this->assertSame(null, $file->visibility());
         $this->assertSame([], $file->metadata());
         $this->assertFalse($file->isHtmlImage());
     }
@@ -85,7 +115,7 @@ class NullStorageTest extends TestCase
         $storage = new NullStorage();
         
         $files = $storage
-            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url', 'visibility')
+            ->with('stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url')
             ->files(path: '');
         
         $this->assertInstanceOf(FilesInterface::class, $files);
@@ -159,25 +189,5 @@ class NullStorageTest extends TestCase
         $storage->deleteFolder(path: 'foo/bar');
         
         $this->assertFalse($storage->folderExists('foo/bar'));
-    }
-    
-    public function testSetVisibility()
-    {
-        $storage = new NullStorage();
-        
-        $public = Visibility::PUBLIC;
-        $private = Visibility::PRIVATE;
-        
-        $storage->setVisibility(
-            path: 'file.txt',
-            visibility: $public
-        );
-        
-        $storage->setVisibility(
-            path: 'file.txt',
-            visibility: $private
-        );        
-
-        $this->assertTrue(true);
     }
 }
