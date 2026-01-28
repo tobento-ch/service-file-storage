@@ -13,25 +13,47 @@ declare(strict_types=1);
 
 namespace Tobento\Service\FileStorage;
 
-/**
- * Folder
- */
 class Folder implements FolderInterface
 {
     /**
      * Create a new Folder.
      *
+     * @param string $storageName
      * @param string $path
      * @param null|int $lastModified
-     * @param null|string $visibility
      * @param array $metadata
      */
     public function __construct(
+        protected string $storageName,
         protected string $path,
         protected null|int $lastModified = null,
-        protected null|string $visibility = null,
         protected array $metadata = [],
     ) {}
+    
+    /**
+     * Returns the name of the storage this folder belongs to.
+     *
+     * Example: "local", "s3", "public"
+     *
+     * @return string
+     */
+    public function storageName(): string
+    {
+        return $this->storageName;
+    }
+
+    /**
+     * Returns a new instance with the given storage name.
+     *
+     * @param string $name
+     * @return static
+     */
+    public function withStorageName(string $name): static
+    {
+        $new = clone $this;
+        $new->storageName = $name;
+        return $new;
+    }
     
     /**
      * Returns the path.
@@ -73,16 +95,6 @@ class Folder implements FolderInterface
     public function lastModified(): null|int
     {
         return $this->lastModified;
-    }
-    
-    /**
-     * Returns the visibility.
-     *
-     * @return null|string
-     */
-    public function visibility(): null|string
-    {
-        return $this->visibility;
     }
 
     /**

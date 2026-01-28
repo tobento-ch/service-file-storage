@@ -13,11 +13,25 @@ declare(strict_types=1);
 
 namespace Tobento\Service\FileStorage;
 
-/**
- * FolderInterface
- */
 interface FolderInterface
 {
+    /**
+     * Returns the name of the storage this folder belongs to.
+     *
+     * Example: "local", "s3", "public"
+     *
+     * @return string
+     */
+    public function storageName(): string;
+    
+    /**
+     * Returns a new instance with the given storage name.
+     *
+     * @param string $name
+     * @return static
+     */
+    public function withStorageName(string $name): static;
+    
     /**
      * Returns the path.
      *
@@ -45,13 +59,6 @@ interface FolderInterface
      * @return null|int
      */
     public function lastModified(): null|int;
-    
-    /**
-     * Returns the visibility.
-     *
-     * @return null|string
-     */
-    public function visibility(): null|string;
 
     /**
      * Returns the metadata.
