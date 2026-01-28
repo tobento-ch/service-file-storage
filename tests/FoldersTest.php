@@ -19,15 +19,12 @@ use Tobento\Service\FileStorage\FoldersInterface;
 use Tobento\Service\FileStorage\Folder;
 use Tobento\Service\FileStorage\FolderInterface;
 
-/**
- * FoldersTest
- */
 class FoldersTest extends TestCase
 {
     public function testCreateFolders()
     {
         $folders = new Folders([
-            new Folder(path: 'folder')
+            new Folder(storageName: 'local', path: 'folder')
         ]);
         
         $this->assertInstanceof(FoldersInterface::class, $folders);
@@ -36,12 +33,12 @@ class FoldersTest extends TestCase
     public function testFilterMethod()
     {
         $folders = new Folders([
-            new Folder(path: 'file', visibility: 'public'),
-            new Folder(path: 'image', visibility: 'private'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'foo', path: 'image'),
         ]);
         
         $foldersNew = $folders->filter(
-            fn(FolderInterface $f): bool => in_array($f->visibility(), ['private'])
+            fn(FolderInterface $f): bool => in_array($f->storageName(), ['local'])
         );
         
         $this->assertFalse($folders === $foldersNew);
@@ -51,9 +48,9 @@ class FoldersTest extends TestCase
     public function testSortMethod()
     {
         $folders = new Folders([
-            new Folder(path: 'file'),
-            new Folder(path: 'bar'),
-            new Folder(path: 'image'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'local', path: 'bar'),
+            new Folder(storageName: 'local', path: 'image'),
         ]);
         
         $paths = [];
@@ -88,8 +85,8 @@ class FoldersTest extends TestCase
     public function testFirstMethod()
     {
         $folders = new Folders([
-            new Folder(path: 'file'),
-            new Folder(path: 'image'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'local', path: 'image'),
         ]);
         
         $this->assertSame('file', $folders->first()?->path());
@@ -102,8 +99,8 @@ class FoldersTest extends TestCase
     public function testGetMethod()
     {
         $folders = new Folders([
-            new Folder(path: 'file'),
-            new Folder(path: 'image'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'local', path: 'image'),
         ]);
         
         $this->assertSame('image', $folders->get(path: 'image')?->path());
@@ -116,8 +113,8 @@ class FoldersTest extends TestCase
     public function testAllMethod()
     {
         $folders = new Folders([
-            new Folder(path: 'file'),
-            new Folder(path: 'image'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'local', path: 'image'),
         ]);
         
         $this->assertSame(2, count($folders->all()));
@@ -126,8 +123,8 @@ class FoldersTest extends TestCase
     public function testIteration()
     {
         $folders = new Folders([
-            new Folder(path: 'file'),
-            new Folder(path: 'image'),
+            new Folder(storageName: 'local', path: 'file'),
+            new Folder(storageName: 'local', path: 'image'),
         ]);
         
         foreach($folders as $folder) {
