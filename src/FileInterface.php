@@ -15,11 +15,25 @@ namespace Tobento\Service\FileStorage;
 
 use Psr\Http\Message\StreamInterface;
 
-/**
- * FileInterface
- */
 interface FileInterface
 {
+    /**
+     * Returns the name of the storage this file belongs to.
+     *
+     * Example: "local", "s3", "public"
+     *
+     * @return string
+     */
+    public function storageName(): string;
+
+    /**
+     * Returns a new instance with the given storage name.
+     *
+     * @param string $name
+     * @return static
+     */
+    public function withStorageName(string $name): static;
+    
     /**
      * Returns the path.
      *
@@ -126,13 +140,6 @@ interface FileInterface
      * @return static
      */
     public function withUrl(null|string $url): static;
-    
-    /**
-     * Returns the visibility.
-     *
-     * @return null|string
-     */
-    public function visibility(): null|string;
     
     /**
      * Returns the metadata.

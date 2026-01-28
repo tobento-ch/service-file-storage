@@ -15,9 +15,6 @@ namespace Tobento\Service\FileStorage;
 
 use Psr\Http\Message\StreamInterface;
 
-/**
- * File
- */
 class File implements FileInterface
 {
     /**
@@ -38,6 +35,7 @@ class File implements FileInterface
     /**
      * Create a new File.
      *
+     * @param string $storageName
      * @param string $path
      * @param null|StreamInterface $stream
      * @param null|string $mimeType
@@ -46,10 +44,10 @@ class File implements FileInterface
      * @param null|int $height
      * @param null|int $lastModified
      * @param null|string $url
-     * @param null|string $visibility
      * @param array $metadata
      */
     public function __construct(
+        protected string $storageName,
         protected string $path,
         protected null|StreamInterface $stream = null,
         protected null|string $mimeType = null,
@@ -58,13 +56,37 @@ class File implements FileInterface
         protected null|int $height = null,
         protected null|int $lastModified = null,
         protected null|string $url = null,
-        protected null|string $visibility = null,
         protected array $metadata = [],
     ) {
         $pathinfo = pathinfo($path);
         $this->name = $pathinfo['basename'] ?? '';
         $this->filename = $pathinfo['filename'] ?? '';
         $this->extension = isset($pathinfo['extension']) ? strtolower($pathinfo['extension']) : '';
+    }
+    
+    /**
+     * Returns the name of the storage this file belongs to.
+     *
+     * Example: "local", "s3", "public"
+     *
+     * @return string
+     */
+    public function storageName(): string
+    {
+        return $this->storageName;
+    }
+
+    /**
+     * Returns a new instance with the given storage name.
+     *
+     * @param string $name
+     * @return static
+     */
+    public function withStorageName(string $name): static
+    {
+        $new = clone $this;
+        $new->storageName = $name;
+        return $new;
     }
     
     /**
@@ -243,16 +265,6 @@ class File implements FileInterface
         $new = clone $this;
         $new->url = $url;
         return $new;
-    }
-    
-    /**
-     * Returns the visibility.
-     *
-     * @return null|string
-     */
-    public function visibility(): null|string
-    {
-        return $this->visibility;
     }
     
     /**
