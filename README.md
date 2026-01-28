@@ -9,6 +9,8 @@ File storage interface for PHP applications using [Flysystem](https://github.com
     - [Highlights](#highlights)
 - [Documentation](#documentation)
     - [Create Storage](#create-storage)
+        - [Public Storage](#public-storage)
+        - [Private Storage](#private-storage)
     - [File](#file)
         - [Write File](#write-file)
         - [File Exists](#file-exists)
@@ -23,8 +25,6 @@ File storage interface for PHP applications using [Flysystem](https://github.com
         - [Folder Exists](#folder-exists)
         - [Retrieve Folders](#retrieve-folders)
         - [Delete Folder](#delete-folder)
-    - [Visibility](#visibility)
-        - [Set Visibility](#set-visibility)
     - [Storages](#storages)
         - [Create Storages](#create-storages)
         - [Add Storages](#add-storages)
@@ -42,6 +42,10 @@ File storage interface for PHP applications using [Flysystem](https://github.com
         - [Files Interface](#files-interface)
         - [Folder Interface](#folder-interface)
         - [Folders Interface](#folders-interface)
+    - [Repositories](#repositories)
+        - [File Repository](#file-repository)
+        - [Folder Repository](#folder-repository)
+        - [File and Folder Repository](#file-and-folder-repository)
 - [Credits](#credits)
 ___
 
@@ -67,6 +71,60 @@ composer require tobento/service-file-storage
 ## Create Storage
 
 Check out the [Available Storages](#available-storages) section to create storages.
+
+### Public Storage
+
+Public storages are intended for assets that can be accessed directly by end-users.
+
+- **URL available** (when configured, e.g. via `public_url`)
+- **No signing required**
+- **For public assets**, such as:
+  - website images
+  - CSS / JS files
+  - thumbnails
+  - media intended for direct embedding
+
+Public storage is ideal when files should be openly accessible without authentication.
+
+**Create Public Storage**
+
+Check out the [Available Storages](#available-storages) section to create storages using the appropriate storage adapter.  
+A public storage is created by setting its `type` to `public`.  
+If the storage adapter supports direct URL generation (for example in the [Flysystem Storage](#flysystem-storage)),  
+you may configure a `public_url` to enable public file URLs.
+
+**Note**
+
+The storage type does **not** automatically make files public.  
+It is a semantic flag that your application and configuration must handle correctly  
+(for example by defining a `public_url` or implementing access control).
+
+
+#### Private Storage
+
+Private storages are intended for files that must **not** be directly exposed.
+
+- **No direct URL**
+- **Access only through your application**
+- **Can generate signed URLs** (if your app implements this)
+- **Used for**, for example:
+  - user uploads
+  - original images (before processing)
+  - protected downloads
+  - documents behind authentication
+  - editor-only or unpublished assets
+
+Private storage is ideal when you need full control over who can access a file.
+
+**Create Private Storage**
+
+Check out the [Available Storages](#available-storages) section to create storages using the appropriate storage adapter.  
+A private storage is created by setting its `type` to `private`.
+
+**Note**
+
+The storage type does **not** automatically make files private.  
+It is a semantic flag that your application and configuration must handle correctly.
 
 ## File
 
@@ -191,7 +249,6 @@ $file = $storage
         'width', 'height', // ignored if not image.
         'lastModified',
         'url',
-        'visibility',
     )
     ->file(path: 'folder/image.jpg');
 
@@ -202,7 +259,6 @@ $width = $file->width();
 $height = $file->height();
 $lastModified = $file->lastModified();
 $url = $file->url();
-$visibility = $file->visibility();
 ```
 
 Check out the [File Interface](#file-interface) to learn more about it.
@@ -260,19 +316,6 @@ try {
 } catch (FolderException $e) {
     // could not delete folder
 }
-```
-
-## Visibility
-
-### Set Visibility
-
-```php
-use Tobento\Service\FileStorage\Visibility;
-
-$storage->setVisibility(
-    path: 'folder/image.jpg',
-    visibility: Visibility::PRIVATE // or Visibility::PUBLIC
-);
 ```
 
 ## Storages
@@ -396,6 +439,7 @@ $storage = new Flysystem\Storage(
         flysystem: $filesystem,
         streamFactory: new Psr17Factory()
     ),
+    type: 'private', // or 'public'
 );
 
 var_dump($storage instanceof StorageInterface);
@@ -408,7 +452,10 @@ var_dump($storage instanceof StorageInterface);
 use Tobento\Service\FileStorage\NullStorage;
 use Tobento\Service\FileStorage\StorageInterface;
 
-$storage = new NullStorage(name: 'null');
+$storage = new NullStorage(
+    name: 'null',
+    type: 'private', // or 'public'
+);
 
 var_dump($storage instanceof StorageInterface);
 // bool(true)
@@ -465,7 +512,6 @@ All methods from:
 
 - [File](#file)
 - [Folder](#folder)
-- [Visibility](#visibility)
 
 **name**
 
@@ -474,6 +520,33 @@ Returns the storage name.
 ```php
 var_dump($storage->name());
 // string(5) "local"
+```
+
+**type**
+
+Returns the storage type (`public` or `private`).
+
+```php
+var_dump($storage->type());
+// string(6) "public"
+```
+
+**isPublic**
+
+Returns `true` if the storage is public.
+
+```php
+var_dump($storage->isPublic());
+// bool(true)
+```
+
+**isPrivate**
+
+Returns `true` if the storage is private.
+
+```php
+var_dump($storage->isPrivate());
+// bool(false)
 ```
 
 ### Storages Interface
@@ -492,7 +565,7 @@ use Tobento\Service\FileStorage\FileInterface;
 $file = $storage
     ->with(
         'stream', 'mimeType', 'size', 'width',
-        'lastModified', 'url', 'visibility',
+        'lastModified', 'url',
     )
     ->file(path: 'folder/image.jpg');
     
@@ -503,6 +576,13 @@ var_dump($file instanceof FileInterface);
 **Methods**
 
 ```php
+var_dump($file->storageName());
+// string(5) "local"
+
+// Modify storage name returning a new instance:
+var_dump($file->withStorageName(name: 'foo'));
+// string(3) "foo"
+
 var_dump($file->path());
 // string(16) "folder/image.jpg"
 
@@ -548,9 +628,6 @@ var_dump($file->url());
 // Modify url returning a new instance:
 $file = $file->withUrl('https://www.example.com/folder/image.jpg');
 
-var_dump($file->visibility());
-// string(6) "public" or NULL
-
 var_dump($file->metadata());
 // array(0) { }
 
@@ -581,10 +658,9 @@ Returns a new instance with the filtered files.
 
 ```php
 use Tobento\Service\FileStorage\FileInterface;
-use Tobento\Service\FileStorage\Visibility;
 
 $files = $files->filter(
-    fn(FileInterface $f): bool => $f->visibility() === Visibility::PUBLIC
+    fn(FileInterface $f): bool => in_array($f->mimeType(), ['image/jpeg'])
 );
 ```
 
@@ -630,6 +706,13 @@ foreach($storage->folders(path: 'foo') as $folder) {
 **Methods**
 
 ```php
+var_dump($folder->storageName());
+// string(5) "local"
+
+// Modify storage name returning a new instance:
+var_dump($folder->withStorageName(name: 'foo'));
+// string(3) "foo"
+
 var_dump($folder->path());
 // string(7) "foo/bar"
 
@@ -641,9 +724,6 @@ var_dump($folder->name());
 
 var_dump($folder->lastModified());
 // int(1671889402) or NULL
-
-var_dump($folder->visibility());
-// string(6) "public" or NULL
 
 var_dump($folder->metadata());
 // array(0) { }
@@ -666,10 +746,9 @@ Returns a new instance with the filtered folders.
 
 ```php
 use Tobento\Service\FileStorage\FolderInterface;
-use Tobento\Service\FileStorage\Visibility;
 
 $folders = $folders->filter(
-    fn(FolderInterface $f): bool => $f->visibility() === Visibility::PUBLIC
+    fn(FolderInterface $f): bool => in_array($f->storageName(), ['local'])
 );
 ```
 
@@ -724,6 +803,127 @@ foreach($folders->all() as $folder) {
 // or just
 foreach($folders as $folder) {}
 ```
+
+## Repositories
+
+The file storage service provides optional **repository abstractions** for querying files and folders using a consistent, storage-agnostic API.  
+Repositories allow you to filter, sort, and retrieve filesystem items in a structured way, similar to database repositories.
+
+Using repositories is **optional**.  
+To enable them, install the following packages:
+
+- [tobento/service-repository](https://github.com/tobento-ch/service-repository)  
+  Provides the base repository interfaces and exceptions.
+
+- [tobento/service-repository-storage](https://github.com/tobento-ch/service-repository-storage)  
+  Provides repository implementations backed by storage services.
+
+- [tobento/service-storage](https://github.com/tobento-ch/service-storage)  
+  Required for storage-based repositories (files, folders, etc.).
+
+```
+composer require tobento/service-repository tobento/service-repository-storage tobento/service-storage
+```
+
+Repositories can also be used together with  
+[tobento/app-crud](https://github.com/tobento-ch/app-crud)  
+to build CRUD interfaces or file manager UIs, as the repository API is fully compatible out of the box.  
+This integration is optional and not required to use repositories.
+
+Repositories also integrate seamlessly with  
+[tobento/app-search](https://github.com/tobento-ch/app-search),  
+allowing you to make files and folders searchable using the `RepositorySearchable` adapter.  
+This integration is optional and not required to use repositories.
+
+### File Repository
+
+The **File Repository** offers a structured, storage-agnostic way to query files from a storage location.  
+It supports filtering, sorting, limits, recursive traversal, and root folder scoping.
+
+The repository is provided by  
+[tobento/service-repository-storage](https://github.com/tobento-ch/service-repository-storage),  
+which contains the full repository documentation, and relies on  
+[tobento/service-repository](https://github.com/tobento-ch/service-repository)  
+for the base repository interfaces.
+
+```php
+use Tobento\Service\FileStorage\Repository\FileRepository;
+
+$repository = new FileRepository(storage: $storage);
+
+// Configure repository returing a new instance:
+$repository = $repository->withStorage($anotherStorage);
+
+$repository = $repository->withRootFolder('images/'); // default = ''
+
+$repository = $repository->withFileAttributes(['size', 'lastModified']);
+
+$repository = $repository->withRecursive(true); // default false
+```
+
+By default, all file attributes are loaded, and recursive mode is disabled (`false`).  
+See the list of available attributes under  
+[Available File Attributes](#available-file-attributes).
+
+### Folder Repository
+
+The **Folder Repository** provides a structured, storage-agnostic way to query folders from a storage location.  
+It supports filtering, sorting, limits, recursive traversal, and root folder scoping.
+
+The repository is provided by  
+[tobento/service-repository-storage](https://github.com/tobento-ch/service-repository-storage),  
+which contains the full repository documentation, and relies on  
+[tobento/service-repository](https://github.com/tobento-ch/service-repository)  
+for the base repository interfaces.
+
+```php
+use Tobento\Service\FileStorage\Repository\FolderRepository;
+
+$repository = new FolderRepository(storage: $storage);
+
+// Configure repository returning a new instance:
+$repository = $repository->withStorage($anotherStorage);
+
+$repository = $repository->withRootFolder('images/'); // default = ''
+
+$repository = $repository->withRecursive(true); // default false
+```
+
+By default, all folder data is loaded, and recursive mode is disabled (`false`).
+
+### File and Folder Repository
+
+The **File and Folder Repository** provides a unified way to query both files and folders from a storage location.  
+It supports filtering, sorting, limits, recursive traversal, and root folder scoping, returning a mixed collection of filesystem items.
+
+The repository is provided by  
+[tobento/service-repository-storage](https://github.com/tobento-ch/service-repository-storage),  
+which contains the full repository documentation, and relies on  
+[tobento/service-repository](https://github.com/tobento-ch/service-repository)  
+for the base repository interfaces.
+
+```php
+use Tobento\Service\FileStorage\Repository\FileRepository;
+use Tobento\Service\FileStorage\Repository\FolderRepository;
+use Tobento\Service\FileStorage\Repository\FileFolderRepository;
+
+$fileRepo = new FileRepository(storage: $storage);
+$folderRepo = new FolderRepository(storage: $storage);
+
+$repository = new FileFolderRepository(
+    fileRepository: $fileRepo,
+    folderRepository: $folderRepo,
+);
+
+// Configure repository returning a new instance:
+$repository = $repository->withStorage($anotherStorage);
+
+$repository = $repository->withRootFolder('images/'); // default = ''
+
+$repository = $repository->withRecursive(true); // default false
+```
+
+By default, recursive mode is disabled (`false`), and all file and folder data is loaded.
 
 # Credits
 
