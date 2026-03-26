@@ -14,7 +14,9 @@ declare(strict_types=1);
 namespace Tobento\Service\FileStorage\Repository;
 
 use Tobento\Service\FileStorage\File;
+use Tobento\Service\FileStorage\FileException;
 use Tobento\Service\FileStorage\FileNotFoundException;
+use Tobento\Service\FileStorage\FileWriteException;
 use Tobento\Service\FileStorage\StorageInterface;
 use Tobento\Service\Repository\RepositoryCreateException;
 use Tobento\Service\Repository\RepositoryDeleteException;
@@ -333,9 +335,62 @@ class FileRepository implements RepositoryInterface
      */
     public function create(array $attributes): object
     {
-        throw new RepositoryCreateException([], 'Unsupported');
+        if (!isset($attributes['path'])) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'Missing file path',
+            );
+        }
+
+        if (!is_string($attributes['path'])) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'File path must be of type string',
+            );
+        }
+
+        $path = $this->buildPath($attributes['path']);
+
+        // CASE 1: FileSource already wrote the file
+        if (!array_key_exists('content', $attributes)) {
+            // Nothing to write — assume FileSource handled it
+            $file = $this->findById($path);
+            
+            if (is_null($file)) {
+                throw new RepositoryCreateException(
+                    attributes: $attributes,
+                    message: 'File not found after creation attempt',
+                );
+            }
+            
+            return $file;
+        }
+
+        try {
+            $this->storage->write(
+                path: $path,
+                content: $attributes['content'],
+            );
+        } catch (FileWriteException $e) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: $e->getMessage(),
+                previous: $e
+            );
+        }
+
+        $file = $this->findById($path);
+
+        if (is_null($file)) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'File not found after writing content',
+            );
+        }
+
+        return $file;
     }
-    
+
     /**
      * Update an entity by id.
      *
@@ -371,7 +426,26 @@ class FileRepository implements RepositoryInterface
      */
     public function deleteById(string|int $id): object
     {
-        throw new RepositoryDeleteException($id, 'Unsupported');
+        $entity = $this->findById($id);
+
+        if (is_null($entity)) {
+            throw new RepositoryDeleteException(
+                message: 'Entity not found for deletion',
+                id: $id,
+            );
+        }
+
+        try {
+            $this->storage->delete($entity->path());
+        } catch (FileException $e) {
+            throw new RepositoryDeleteException(
+                message: $e->getMessage(),
+                id: $id,
+                previous: $e,
+            );
+        }
+
+        return $entity;
     }
     
     /**
@@ -383,7 +457,25 @@ class FileRepository implements RepositoryInterface
      */
     public function delete(array $where): iterable
     {
-        throw new RepositoryDeleteException('', 'Unsupported');
+        $entities = $this->findAll(where: $where);
+
+        $deleted = [];
+
+        foreach ($entities as $entity) {
+            try {
+                $this->storage->delete($entity->path());
+            } catch (FileException $e) {
+                throw new RepositoryDeleteException(
+                    message: $e->getMessage(),
+                    id: $entity->path(),
+                    previous: $e,
+                );
+            }
+
+            $deleted[] = $entity;
+        }
+
+        return $deleted;
     }
     
     /**

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tobento\Service\FileStorage\Repository;
 
 use Tobento\Service\FileStorage\Folder;
+use Tobento\Service\FileStorage\FolderException;
 use Tobento\Service\FileStorage\StorageInterface;
 use Tobento\Service\Repository\RepositoryCreateException;
 use Tobento\Service\Repository\RepositoryDeleteException;
@@ -286,7 +287,42 @@ class FolderRepository implements RepositoryInterface
      */
     public function create(array $attributes): object
     {
-        throw new RepositoryCreateException([], 'Unsupported');
+        if (!isset($attributes['path'])) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'Missing folder path',
+            );
+        }
+
+        if (!is_string($attributes['path'])) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'Folder path must be a string',
+            );
+        }
+
+        $path = $this->buildPath($attributes['path']);
+
+        try {
+            $this->storage->createFolder($path);
+        } catch (FolderException $e) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: $e->getMessage(),
+                previous: $e,
+            );
+        }
+
+        $folder = $this->findById($path);
+
+        if (is_null($folder)) {
+            throw new RepositoryCreateException(
+                attributes: $attributes,
+                message: 'Folder not found after creation',
+            );
+        }
+
+        return $folder;
     }
     
     /**
@@ -324,7 +360,26 @@ class FolderRepository implements RepositoryInterface
      */
     public function deleteById(string|int $id): object
     {
-        throw new RepositoryDeleteException($id, 'Unsupported');
+        $folder = $this->findById($id);
+
+        if (is_null($folder)) {
+            throw new RepositoryDeleteException(
+                message: 'Folder not found for deletion',
+                id: $id,
+            );
+        }
+
+        try {
+            $this->storage->deleteFolder($folder->path());
+        } catch (FolderException $e) {
+            throw new RepositoryDeleteException(
+                message: $e->getMessage(),
+                id: $id,
+                previous: $e,
+            );
+        }
+
+        return $folder;
     }
     
     /**
@@ -336,7 +391,25 @@ class FolderRepository implements RepositoryInterface
      */
     public function delete(array $where): iterable
     {
-        throw new RepositoryDeleteException('', 'Unsupported');
+        $folders = $this->findAll(where: $where);
+
+        $deleted = [];
+
+        foreach ($folders as $folder) {
+            try {
+                $this->storage->deleteFolder($folder->path());
+            } catch (FolderException $e) {
+                throw new RepositoryDeleteException(
+                    message: $e->getMessage(),
+                    id: $folder->path(),
+                    previous: $e
+                );
+            }
+
+            $deleted[] = $folder;
+        }
+
+        return $deleted;
     }
     
     /**

@@ -208,7 +208,38 @@ class FileFolderRepository implements RepositoryInterface
      */
     public function create(array $attributes): object
     {
-        throw new RepositoryCreateException([], 'Unsupported');
+        // 1. Explicit type
+        if (isset($attributes['type'])) {
+            return match ($attributes['type']) {
+                'file'   => $this->fileRepository->create($attributes),
+                'folder' => $this->folderRepository->create($attributes),
+                default  => throw new RepositoryCreateException(
+                    attributes: $attributes,
+                    message: 'Invalid type for FileFolderRepository'
+                ),
+            };
+        }
+
+        // 2. If content exists → file
+        if (array_key_exists('content', $attributes)) {
+            return $this->fileRepository->create($attributes);
+        }
+
+        // 3. Infer from path extension
+        if (isset($attributes['path']) && is_string($attributes['path'])) {
+            $path = $attributes['path'];
+
+            // Extract extension
+            $extension = pathinfo($path, PATHINFO_EXTENSION);
+
+            if (!empty($extension)) {
+                // It's a file
+                return $this->fileRepository->create($attributes);
+            }
+        }
+
+        // 4. Default → folder
+        return $this->folderRepository->create($attributes);
     }
     
     /**
@@ -246,7 +277,24 @@ class FileFolderRepository implements RepositoryInterface
      */
     public function deleteById(string|int $id): object
     {
-        throw new RepositoryDeleteException($id, 'Unsupported');
+        // Try file first
+        $file = $this->fileRepository->findById($id);
+
+        if (!is_null($file)) {
+            return $this->fileRepository->deleteById($id);
+        }
+
+        // Try folder
+        $folder = $this->folderRepository->findById($id);
+
+        if (!is_null($folder)) {
+            return $this->folderRepository->deleteById($id);
+        }
+
+        throw new RepositoryDeleteException(
+            message: 'Entity not found for deletion',
+            id: $id
+        );
     }
     
     /**
@@ -258,6 +306,18 @@ class FileFolderRepository implements RepositoryInterface
      */
     public function delete(array $where): iterable
     {
-        throw new RepositoryDeleteException('', 'Unsupported');
+        $deleted = [];
+
+        // Delete files
+        foreach ($this->fileRepository->delete($where) as $file) {
+            $deleted[] = $file;
+        }
+
+        // Delete folders
+        foreach ($this->folderRepository->delete($where) as $folder) {
+            $deleted[] = $folder;
+        }
+
+        return $deleted;
     }
 }
