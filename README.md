@@ -46,6 +46,7 @@ File storage interface for PHP applications using [Flysystem](https://github.com
         - [File Repository](#file-repository)
         - [Folder Repository](#folder-repository)
         - [File and Folder Repository](#file-and-folder-repository)
+        - [Using Repositories with App CRUD](#using-repositories-with-app-crud)
 - [Credits](#credits)
 ___
 
@@ -865,6 +866,44 @@ By default, all file attributes are loaded, and recursive mode is disabled (`fal
 See the list of available attributes under  
 [Available File Attributes](#available-file-attributes).
 
+#### Creation Behavior
+
+**1. FileSource-driven creation (no `content` provided)**
+
+If the `content` attribute is not provided, the repository assumes that:
+
+- a [FileSource Field - App CRUD](https://github.com/tobento-ch/app-crud#filesource-field) or another external component has already written the file to storage
+- the repository should only resolve and return the file entity
+
+```php
+$file = $repository->create([
+    'path' => 'images/photo.jpg',
+]);
+```
+
+In this mode:
+- No write operation is performed
+- The repository attempts to load the file using `findById()`
+- If the file does not exist, a `RepositoryCreateException` is thrown
+
+This is ideal for upload pipelines where the file is already stored before the repository is invoked.
+
+**2. Repository-driven creation (with `content`)**
+
+If the `content` attribute is provided, the repository writes the file to storage:
+
+```php
+$file = $repository->create([
+    'path' => 'docs/readme.txt',
+    'content' => 'Hello World',
+]);
+```
+
+Steps performed:
+1. The repository writes the file using `StorageInterface::write()`
+2. It then resolves the file entity via `findById()`
+3. If the file cannot be resolved, a `RepositoryCreateException` is thrown
+
 ### Folder Repository
 
 The **Folder Repository** provides a structured, storage-agnostic way to query folders from a storage location.  
@@ -890,6 +929,23 @@ $repository = $repository->withRecursive(true); // default false
 ```
 
 By default, all folder data is loaded, and recursive mode is disabled (`false`).
+
+#### Creation Behavior
+
+The repository creates folders using the underlying storage's `createFolder()` method.
+After creation, the repository resolves the folder entity using `findById()` to ensure it exists and is fully hydrated.
+
+```php
+$folder = $repository->create([
+    'path' => 'images/gallery/',
+]);
+```
+
+Steps performed:
+1. The repository validates that a valid `path` is provided
+2. It creates the folder using `StorageInterface::createFolder()`
+3. It resolves the folder entity via `findById()`
+4. If the folder cannot be resolved, a `RepositoryCreateException` is thrown
 
 ### File and Folder Repository
 
@@ -924,6 +980,177 @@ $repository = $repository->withRecursive(true); // default false
 ```
 
 By default, recursive mode is disabled (`false`), and all file and folder data is loaded.
+
+#### Creation Behavior
+
+**1. Explicit type (`file` or `folder`)**
+
+If the `type` attribute is provided, it takes precedence:
+
+```php
+$repository->create([
+    'type' => 'folder',
+    'path' => 'projects/2025/',
+]);
+```
+
+This directly delegates to either:
+- `FileRepository::create()`
+- `FolderRepository::create()`
+
+**2. Content provided: `file`**
+
+If the `content` attribute exists, the repository treats the entity as a file:
+
+```php
+$repository->create([
+    'path' => 'docs/readme.txt',
+    'content' => 'Hello World',
+]);
+```
+
+This mirrors the behavior of the `FileRepository`.
+
+**3. Path contains a file extension: `file`**
+
+If no explicit `type` is given and no `content` is provided, the repository inspects the `path`:
+
+```php
+$repository->create([
+    'path' => 'images/photo.jpg',
+]);
+```
+
+If the `path` contains a file extension (e.g. .jpg, .png, .txt), the repository assumes it is a file.
+
+This makes the API intuitive and filesystem-friendly.
+
+**4. Default behavior: `folder`**
+
+If none of the above conditions apply, the repository treats the entity as a folder:
+
+```php
+$repository->create([
+    'path' => 'archives/2024/',
+]);
+```
+
+This mirrors the behavior of the FolderRepository.
+
+### Using Repositories with App CRUD
+
+The File, Folder, and FileFolder repositories can be used directly with [tobento/app-crud](https://github.com/tobento-ch/app-crud) to build full CRUD interfaces for file storage. However, because file paths behave differently from typical numeric IDs, there are two important considerations.
+
+#### 1. Routing for Recursive Paths
+
+File and folder identifiers are paths, not integers.
+When recursive mode is enabled, IDs may contain slashes:
+
+```
+folder/subfolder/file.txt
+```
+
+This requires a custom route parameter pattern.
+
+**Default CRUD routing is not sufficient**
+
+```
+/files/{id}
+```
+
+will stop at the first slash and break for nested paths.
+
+**Correct routing configuration**
+
+```php
+use Tobento\App\Boot;
+use Tobento\App\Crud\Boot\Crud;
+use Tobento\Service\Routing\RouterInterface;
+
+class RoutesBoot extends Boot
+{
+    public const BOOT = [
+        // you may ensure the crud boot:
+        Crud::class,
+    ];
+    
+    public function boot(Crud $crud, RouterInterface $router)
+    {
+        $crud->routeController(
+            controller: App\FileStorageController::class,
+            whereId: '[\pL\pN _\-%\.]+', // for non-recursive
+        );
+        
+        // Required for recursive paths (folder/file.txt):
+        $router->get('{?locale}/files/{id*}', [App\FileStorageController::class, 'show'])
+            ->name('files.show');
+    }
+}
+```
+
+**Why this is needed**
+
+- `{id*}` allows the ID to contain slashes
+- Without it, CRUD cannot resolve nested file paths
+- This applies to `show`, `edit`, `update`, and `delete` routes
+- This applies to all routes that accept an entity ID - typically `show`, and `delete`. (Edit and update are not supported for file storage repositories.)
+
+#### 2. Entity ID Name and Entity Mapping
+
+CRUD needs to know which attribute represents the entity's primary key.
+For file storage, this is not always the filename.
+
+```php
+class FileStorageController extends AbstractCrudController
+{
+    public const RESOURCE_NAME = 'files';
+
+    public function __construct(
+        FileStorageRepository $repository,
+    ) {
+        $this->repository = $repository;
+    }
+
+    public function entityIdName(): string
+    {
+        // The full path is the only reliable unique identifier.
+        // In recursive mode, filenames repeat across folders:
+        //   "folder1/image.jpg"
+        //   "folder2/image.jpg"
+        // Using 'name' would cause collisions.
+        //
+        // Therefore, always use 'path' as the entity ID.
+        return 'path';
+
+        // If recursion is disabled, you *may* use 'name' instead:
+        // return 'name';
+        //
+        // But this only works when all files are in a single directory.
+    }
+    
+    public function createEntityFromObject(object $object): EntityInterface
+    {
+        // Files and Folders:
+        $attributes = [
+            'path' => $object->path(),
+            'name' => $object->name(),
+            'last_modified' => $object->lastModified(),
+        ];
+
+        // File-specific attributes:
+        if ($object instanceof \Tobento\Service\FileStorage\File) {
+            $attributes['extension'] = $object->extension();
+            $attributes['mimetype'] = $object->mimeType();
+            $attributes['size'] = $object->humanSize();
+        }
+
+        return new Entity(
+            attributes: $attributes,
+            idAttributeName: $this->entityIdName(),
+        );
+    }
+}
+```
 
 # Credits
 
