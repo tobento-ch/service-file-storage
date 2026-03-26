@@ -656,14 +656,61 @@ class FileRepositoryTest extends TestCase
         $repo->findColumn('filename');
     }
     
-    public function testCreateThrowsUnsupportedException(): void
+    public function testCreateWritesFile(): void
     {
-        $this->expectException(RepositoryCreateException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->create(['foo' => 'bar']);
+        $file = $repo->create([
+            'path' => 'newfile.txt',
+            'content' => 'Hello World',
+        ]);
+
+        $this->assertSame('newfile.txt', $file->path());
+        $this->assertSame(11, $file->size());
+
+        // cleanup
+        $repo->deleteById('newfile.txt');
+    }
+    
+    public function testCreateWithoutContentAssumesFileExists(): void
+    {
+        $repo = $this->makeRepo();
+
+        // Pre‑write file manually
+        $repo->storage()->write('prewritten.txt', 'ABC');
+
+        $file = $repo->create([
+            'path' => 'prewritten.txt',
+        ]);
+
+        $this->assertSame('prewritten.txt', $file->path());
+        $this->assertSame(3, $file->size());
+
+        // cleanup
+        $repo->deleteById('prewritten.txt');
+    }
+    
+    public function testCreateWithoutContentThrowsIfFileMissing(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->expectException(RepositoryCreateException::class);
+
+        $repo->create([
+            'path' => 'missing.txt',
+        ]);
+    }
+    
+    public function testCreateThrowsOnInvalidPath(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->expectException(RepositoryCreateException::class);
+
+        $repo->create([
+            'path' => ['not-a-string'],
+            'content' => 'X',
+        ]);
     }
 
     public function testUpdateByIdThrowsUnsupportedException(): void
@@ -686,23 +733,58 @@ class FileRepositoryTest extends TestCase
         $repo->update(['id' => ['=' => 1]], ['foo' => 'bar']);
     }
 
-    public function testDeleteByIdThrowsUnsupportedException(): void
+    public function testDeleteByIdDeletesFile(): void
     {
-        $this->expectException(RepositoryDeleteException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->deleteById(1);
+        // Create a dedicated test file
+        $repo->storage()->write('temp-delete-test.jpg', 'XYZ');
+
+        $this->assertNotNull($repo->findById('temp-delete-test.jpg'));
+
+        $deleted = $repo->deleteById('temp-delete-test.jpg');
+
+        $this->assertSame('temp-delete-test.jpg', $deleted->path());
+        $this->assertNull($repo->findById('temp-delete-test.jpg'));
     }
 
-    public function testDeleteThrowsUnsupportedException(): void
+    public function testDeleteDeletesMultipleFiles(): void
     {
-        $this->expectException(RepositoryDeleteException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->delete(['id' => ['=' => 1]]);
+        // Create temporary test files that match the filter
+        $repo->storage()->write('tempAA.jpg', 'AA');
+        $repo->storage()->write('tempAAA.jpg', 'AAA');
+        $repo->storage()->write('tempBB.jpg', 'BB');
+
+        // Act: delete all files with author = tom
+        $deleted = iterator_to_array($repo->delete([
+            'filename' => ['like' => 'tempAA%'],
+        ]));
+
+        // We expect exactly the two temp files to be deleted
+        $deletedPaths = array_map(fn($f) => $f->path(), $deleted);
+
+        $this->assertCount(2, $deleted);
+        $this->assertContains('tempAA.jpg', $deletedPaths);
+        $this->assertContains('tempAAA.jpg', $deletedPaths);
+
+        // Ensure they are gone
+        $this->assertNull($repo->findById('tempAA.jpg'));
+        $this->assertNull($repo->findById('tempAAA.jpg'));
+        
+        // cleanup
+        $repo->deleteById('tempBB.jpg');
+    }
+
+    public function testDeleteReturnsEmptyIfNoMatch(): void
+    {
+        $repo = $this->makeRepo();
+
+        $deleted = iterator_to_array($repo->delete([
+            'author' => 'nobody',
+        ]));
+
+        $this->assertSame([], $deleted);
     }
 }

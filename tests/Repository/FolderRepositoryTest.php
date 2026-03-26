@@ -564,14 +564,30 @@ class FolderRepositoryTest extends TestCase
         $repo->findColumn('name');
     }
     
-    public function testCreateThrowsUnsupportedException(): void
+    public function testCreateCreatesFolder(): void
     {
-        $this->expectException(RepositoryCreateException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->create(['foo' => 'bar']);
+        $folder = $repo->create([
+            'path' => 'temp-folder',
+        ]);
+
+        $this->assertSame('temp-folder', $folder->path());
+        $this->assertNotNull($repo->findById('temp-folder'));
+
+        // cleanup
+        $repo->deleteById('temp-folder');
+    }
+    
+    public function testCreateThrowsOnInvalidPath(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->expectException(RepositoryCreateException::class);
+
+        $repo->create([
+            'path' => ['not-a-string'],
+        ]);
     }
 
     public function testUpdateByIdThrowsUnsupportedException(): void
@@ -594,23 +610,66 @@ class FolderRepositoryTest extends TestCase
         $repo->update(['id' => ['=' => 1]], ['foo' => 'bar']);
     }
 
-    public function testDeleteByIdThrowsUnsupportedException(): void
+    public function testDeleteByIdDeletesFolder(): void
     {
-        $this->expectException(RepositoryDeleteException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->deleteById(1);
+        // create temp folder
+        $repo->storage()->createFolder('temp-delete');
+
+        $this->assertNotNull($repo->findById('temp-delete'));
+
+        $deleted = $repo->deleteById('temp-delete');
+
+        $this->assertSame('temp-delete', $deleted->path());
+        $this->assertNull($repo->findById('temp-delete'));
+    }
+    
+    public function testDeleteByIdThrowsIfMissing(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->expectException(RepositoryDeleteException::class);
+
+        $repo->deleteById('missing-folder');
     }
 
-    public function testDeleteThrowsUnsupportedException(): void
+    public function testDeleteDeletesMultipleFolders(): void
     {
-        $this->expectException(RepositoryDeleteException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->delete(['id' => ['=' => 1]]);
+        // create temp folders
+        $repo->storage()->createFolder('tempA');
+        $repo->storage()->createFolder('tempAA');
+        $repo->storage()->createFolder('tempB');
+
+        // delete folders starting with "tempA"
+        $deleted = iterator_to_array($repo->delete([
+            'path' => ['like' => 'tempA%'],
+        ]));
+
+        $deletedPaths = array_map(fn($f) => $f->path(), $deleted);
+
+        $this->assertCount(2, $deleted);
+        $this->assertContains('tempA', $deletedPaths);
+        $this->assertContains('tempAA', $deletedPaths);
+
+        // ensure they are gone
+        $this->assertNull($repo->findById('tempA'));
+        $this->assertNull($repo->findById('tempAA'));
+
+        // cleanup leftover
+        $repo->deleteById('tempB');
+    }
+    
+    public function testDeleteReturnsEmptyIfNoMatch(): void
+    {
+        $repo = $this->makeRepo();
+
+        $deleted = iterator_to_array($repo->delete([
+            'path' => ['like' => 'nope%'],
+        ]));
+
+        $this->assertSame([], $deleted);
     }
 }

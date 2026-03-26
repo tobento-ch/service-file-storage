@@ -244,15 +244,84 @@ class FileFolderRepositoryTest extends TestCase
         $this->assertTrue($repo->fileRepository()->recursive());
         $this->assertTrue($repo->folderRepository()->recursive());
     }
-
-    public function testUnsupportedCreateThrows(): void
+    
+    public function testCreateFileExplicitType(): void
     {
         $repo = $this->makeRepo();
 
-        $this->expectException(RepositoryCreateException::class);
-        $repo->create([]);
+        $file = $repo->create([
+            'type' => 'file',
+            'path' => 'temp-file.txt',
+            'content' => 'ABC',
+        ]);
+
+        $this->assertSame('temp-file.txt', $file->path());
+        $this->assertNotNull($repo->findById('temp-file.txt'));
+
+        // cleanup
+        $repo->deleteById('temp-file.txt');
+    }
+    
+    public function testCreateFolderExplicitType(): void
+    {
+        $repo = $this->makeRepo();
+
+        $folder = $repo->create([
+            'type' => 'folder',
+            'path' => 'temp-folder',
+        ]);
+
+        $this->assertSame('temp-folder', $folder->path());
+        $this->assertNotNull($repo->findById('temp-folder'));
+
+        // cleanup
+        $repo->deleteById('temp-folder');
     }
 
+    public function testCreateInfersFileFromContent(): void
+    {
+        $repo = $this->makeRepo();
+
+        $file = $repo->create([
+            'path' => 'temp-content.txt',
+            'content' => 'XYZ',
+        ]);
+
+        $this->assertSame('temp-content.txt', $file->path());
+
+        // cleanup
+        $repo->deleteById('temp-content.txt');
+    }
+    
+    public function testCreateInfersFileFromExtension(): void
+    {
+        $repo = $this->makeRepo();
+
+        $file = $repo->create([
+            'path' => 'temp-image.jpg',
+            'content' => 'IMG',
+        ]);
+
+        $this->assertSame('temp-image.jpg', $file->path());
+
+        // cleanup
+        $repo->deleteById('temp-image.jpg');
+    }
+
+    public function testCreateDefaultsToFolder(): void
+    {
+        $repo = $this->makeRepo();
+
+        $folder = $repo->create([
+            'path' => 'temp-default-folder',
+        ]);
+
+        $this->assertSame('temp-default-folder', $folder->path());
+
+        // cleanup
+        $repo->deleteById('temp-default-folder');
+    }
+    
     public function testUnsupportedUpdateThrows(): void
     {
         $repo = $this->makeRepo();
@@ -261,14 +330,88 @@ class FileFolderRepositoryTest extends TestCase
         $repo->updateById('id', []);
     }
 
-    public function testUnsupportedDeleteThrows(): void
+    public function testDeleteByIdDeletesFile(): void
+    {
+        $repo = $this->makeRepo();
+
+        // create temp file
+        $repo->fileRepository()->storage()->write('temp-file.txt', 'ABC');
+
+        $this->assertNotNull($repo->findById('temp-file.txt'));
+
+        $deleted = $repo->deleteById('temp-file.txt');
+
+        $this->assertSame('temp-file.txt', $deleted->path());
+        $this->assertNull($repo->findById('temp-file.txt'));
+    }
+    
+    public function testDeleteByIdDeletesFolder(): void
+    {
+        $repo = $this->makeRepo();
+
+        // create temp folder
+        $repo->folderRepository()->storage()->createFolder('temp-folder');
+
+        $this->assertNotNull($repo->findById('temp-folder'));
+
+        $deleted = $repo->deleteById('temp-folder');
+
+        $this->assertSame('temp-folder', $deleted->path());
+        $this->assertNull($repo->findById('temp-folder'));
+    }
+    
+    public function testDeleteByIdThrowsIfMissing(): void
     {
         $repo = $this->makeRepo();
 
         $this->expectException(RepositoryDeleteException::class);
-        $repo->deleteById('id');
-    }
 
+        $repo->deleteById('does-not-exist');
+    }
+    
+    public function testDeleteDeletesFilesAndFolders(): void
+    {
+        $repo = $this->makeRepo();
+
+        // create temp file + folder
+        $repo->fileRepository()->storage()->write('tempA.txt', 'AAA');
+        $repo->folderRepository()->storage()->createFolder('tempA-folder');
+
+        // create non-matching items
+        $repo->fileRepository()->storage()->write('tempB.txt', 'BBB');
+        $repo->folderRepository()->storage()->createFolder('tempB-folder');
+
+        // delete everything starting with "tempA"
+        $deleted = iterator_to_array($repo->delete([
+            'path' => ['like' => 'tempA%'],
+        ]));
+
+        $deletedPaths = array_map(fn($e) => $e->path(), $deleted);
+
+        $this->assertCount(2, $deleted);
+        $this->assertContains('tempA.txt', $deletedPaths);
+        $this->assertContains('tempA-folder', $deletedPaths);
+
+        // ensure they are gone
+        $this->assertNull($repo->findById('tempA.txt'));
+        $this->assertNull($repo->findById('tempA-folder'));
+
+        // cleanup leftovers
+        $repo->deleteById('tempB.txt');
+        $repo->deleteById('tempB-folder');
+    }
+    
+    public function testDeleteReturnsEmptyIfNoMatch(): void
+    {
+        $repo = $this->makeRepo();
+
+        $deleted = iterator_to_array($repo->delete([
+            'path' => ['like' => 'nope%'],
+        ]));
+
+        $this->assertSame([], $deleted);
+    }
+    
     public function testUnsupportedFindColumnThrows(): void
     {
         $repo = $this->makeRepo();
