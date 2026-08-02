@@ -859,12 +859,19 @@ $repository = $repository->withRootFolder('images/'); // default = ''
 
 $repository = $repository->withFileAttributes(['size', 'lastModified']);
 
+$repository = $repository->withAttributeAliases([
+    'modified_at' => 'lastModified',
+]);
+
 $repository = $repository->withRecursive(true); // default false
 ```
 
 By default, all file attributes are loaded, and recursive mode is disabled (`false`).  
 See the list of available attributes under  
 [Available File Attributes](#available-file-attributes).
+
+Attribute aliases allow you to use custom column names in filters and ordering for read-only repository methods.  
+For more details, see the [Aliased Columns](https://github.com/tobento-ch/service-repository-storage#aliased-columns) section as it is used internally.
 
 #### Creation Behavior
 
@@ -925,10 +932,32 @@ $repository = $repository->withStorage($anotherStorage);
 
 $repository = $repository->withRootFolder('images/'); // default = ''
 
+$repository = $repository->withAttributeAliases([
+    'modified_at' => 'lastModified',
+]);
+
 $repository = $repository->withRecursive(true); // default false
 ```
 
 By default, all folder data is loaded, and recursive mode is disabled (`false`).
+
+Attribute aliases allow you to use custom column names in filters and ordering for read-only repository methods.  
+For more details, see the [Aliased Columns](https://github.com/tobento-ch/service-repository-storage#aliased-columns) section as it is used internally.
+
+**Available Attributes For Aliases**
+
+The following folder attributes may be aliased:
+
+- `id`
+- `type`
+- `storageName`
+- `path`
+- `parentPath`
+- `name`
+- `lastModified`
+- `metadata`
+
+These correspond to the internal column definitions used by the repository.
 
 #### Creation Behavior
 
