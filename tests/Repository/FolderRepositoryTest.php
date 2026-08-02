@@ -554,14 +554,123 @@ class FolderRepositoryTest extends TestCase
         $this->assertSame(7, $count);
     }
     
-    public function testFindColumnThrowsUnsupportedException(): void
+    public function testFindColumnReturnsValues(): void
     {
-        $this->expectException(RepositoryReadException::class);
-        $this->expectExceptionMessage('Unsupported');
-
         $repo = $this->makeRepo();
 
-        $repo->findColumn('name');
+        $values = $repo->findColumn('name');
+
+        $this->assertSame(
+            [
+                'animals',
+                'fruits',
+                'vehicles',
+            ],
+            $values
+        );
+    }
+    
+    public function testFindColumnWithKey(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'name', key: 'path');
+
+        $this->assertSame(
+            [
+                'animals' => 'animals',
+                'fruits' => 'fruits',
+                'vehicles' => 'vehicles',
+            ],
+            $values
+        );
+    }
+    
+    public function testFindColumnWithLimit(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('name', limit: 2);
+
+        $this->assertSame(
+            [
+                'animals',
+                'fruits',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithLimitAndOffset(): void
+    {
+        $repo = $this->makeRepo();
+
+        // limit = [count, offset]
+        $values = $repo->findColumn('name', limit: [1, 1]);
+
+        $this->assertSame(
+            [
+                'fruits',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithOrderByAscending(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('name', orderBy: ['name' => 'ASC']);
+
+        $this->assertSame(
+            [
+                'animals',
+                'fruits',
+                'vehicles',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithOrderByDescending(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('name', orderBy: ['name' => 'DESC']);
+
+        $this->assertSame(
+            [
+                'vehicles',
+                'fruits',
+                'animals',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKeyAndOrderBy(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'name', key: 'path', orderBy: ['name' => 'DESC']);
+
+        $this->assertSame(
+            [
+                'vehicles' => 'vehicles',
+                'fruits' => 'fruits',
+                'animals' => 'animals',
+            ],
+            $values
+        );
+    }
+    
+    public function testFindColumnMissingColumnReturnsEmpty(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('nonexistent');
+
+        $this->assertSame([], $values);
     }
     
     public function testCreateCreatesFolder(): void
@@ -671,5 +780,74 @@ class FolderRepositoryTest extends TestCase
         ]));
 
         $this->assertSame([], $deleted);
+    }
+    
+    public function testAttributeAliasesWorkForWhere(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'folder_path' => 'path',
+        ]);
+
+        $folders = $repo->findAll(where: ['folder_path' => 'animals']);
+
+        $this->assertCount(1, $folders);
+        $this->assertSame('animals', $folders[0]->path());
+    }
+
+    public function testAttributeAliasesWorkForOrderBy(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'folder_name' => 'name',
+        ]);
+
+        $folders = $repo->findAll(orderBy: ['folder_name' => 'ASC']);
+
+        $names = array_map(fn($f) => $f->name(), $folders);
+
+        $this->assertSame(['animals', 'fruits', 'vehicles'], $names);
+    }
+
+    public function testFindColumnUsesAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'folder_name' => 'name',
+        ]);
+
+        $values = $repo->findColumn('folder_name');
+
+        $this->assertSame(
+            ['animals', 'fruits', 'vehicles'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKeyUsesAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'folder_name' => 'name',
+            'folder_path' => 'path',
+        ]);
+
+        $values = $repo->findColumn(column: 'folder_name', key: 'folder_path');
+
+        $this->assertSame(
+            [
+                'animals'  => 'animals',
+                'fruits'   => 'fruits',
+                'vehicles' => 'vehicles',
+            ],
+            $values
+        );
+    }
+
+    public function testCreateDoesNotSupportAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'folder_path' => 'path',
+        ]);
+
+        $this->expectException(RepositoryCreateException::class);
+
+        $repo->create(['folder_path' => 'new-folder']);
     }
 }

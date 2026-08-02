@@ -157,6 +157,30 @@ class FileRepositoryTest extends TestCase
         $this->assertNotSame($repo, $newRepo);
         $this->assertSame(['size', 'mimeType'], $newRepo->fileAttributes());
     }
+    
+    public function testAttributeAliasMethods(): void
+    {
+        $repo = $this->makeRepo();
+
+        // default: no aliases
+        $this->assertSame([], $repo->attributeAliases());
+
+        // add aliases
+        $newRepo = $repo->withAttributeAliases([
+            'created_at' => 'lastModified',
+            'file_name'  => 'filename',
+        ]);
+
+        // original unchanged
+        $this->assertSame([], $repo->attributeAliases());
+
+        // new instance updated
+        $this->assertNotSame($repo, $newRepo);
+        $this->assertSame([
+            'created_at' => 'lastModified',
+            'file_name'  => 'filename',
+        ], $newRepo->attributeAliases());
+    }
 
     public function testRecursiveMethods(): void
     {
@@ -645,15 +669,109 @@ class FileRepositoryTest extends TestCase
 
         $this->assertSame(8, $count);
     }
-    
-    public function testFindColumnThrowsUnsupportedException(): void
-    {
-        $this->expectException(RepositoryReadException::class);
-        $this->expectExceptionMessage('Unsupported');
 
+    public function testFindColumnReturnsValues(): void
+    {
         $repo = $this->makeRepo();
 
-        $repo->findColumn('filename');
+        $values = $repo->findColumn('filename');
+
+        $this->assertSame(
+            ['apple', 'apricot', 'banana', 'carrot'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKey(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'filename', key: 'path');
+
+        $this->assertSame(
+            [
+                'apple.jpg'   => 'apple',
+                'apricot.jpg' => 'apricot',
+                'banana.png'  => 'banana',
+                'carrot.jpg'  => 'carrot',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithLimit(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('filename', limit: 2);
+
+        $this->assertSame(
+            ['apple', 'apricot'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithLimitAndOffset(): void
+    {
+        $repo = $this->makeRepo();
+
+        // limit = [count, offset]
+        $values = $repo->findColumn('filename', limit: [2, 1]);
+
+        $this->assertSame(
+            ['apricot', 'banana'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithOrderByAscending(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('filename', orderBy: ['filename' => 'ASC']);
+
+        $this->assertSame(
+            ['apple', 'apricot', 'banana', 'carrot'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithOrderByDescending(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('filename', orderBy: ['filename' => 'DESC']);
+
+        $this->assertSame(
+            ['carrot', 'banana', 'apricot', 'apple'],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKeyAndOrderBy(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'filename', key: 'path', orderBy: ['filename' => 'DESC']);
+
+        $this->assertSame(
+            [
+                'carrot.jpg' => 'carrot',
+                'banana.png' => 'banana',
+                'apricot.jpg' => 'apricot',
+                'apple.jpg' => 'apple',
+            ],
+            $values
+        );
+    }
+    
+    public function testFindColumnMissingColumnReturnsEmpty(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('nonexistent');
+
+        $this->assertSame([], $values);
     }
     
     public function testCreateWritesFile(): void
@@ -786,5 +904,73 @@ class FileRepositoryTest extends TestCase
         ]));
 
         $this->assertSame([], $deleted);
+    }
+    
+    public function testAttributeAliasesWorkForWhere(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'file_name' => 'filename',
+        ]);
+
+        $files = $repo->findAll(where: ['file_name' => 'banana']);
+
+        $this->assertCount(1, $files);
+        $this->assertSame('banana', $files[0]->filename());
+    }
+    
+    public function testAttributeAliasesWorkForOrderBy(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'file_name' => 'filename',
+        ]);
+
+        $files = $repo->findAll(orderBy: ['file_name' => 'DESC']);
+
+        $this->assertSame('carrot', $files[0]->filename());
+    }
+    
+    public function testFindColumnUsesAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'file_name' => 'filename',
+        ]);
+
+        $values = $repo->findColumn('file_name');
+
+        $this->assertSame(['apple', 'apricot', 'banana', 'carrot'], $values);
+    }
+    
+    public function testFindColumnWithKeyUsesAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'file_name' => 'filename',
+        ]);
+
+        $values = $repo->findColumn(column: 'file_name', key: 'path');
+
+        $this->assertSame(
+            [
+                'apple.jpg'   => 'apple',
+                'apricot.jpg' => 'apricot',
+                'banana.png'  => 'banana',
+                'carrot.jpg'  => 'carrot',
+            ],
+            $values
+        );
+    }
+    
+    public function testCreateDoesNotSupportAttributeAliases(): void
+    {
+        $repo = $this->makeRepo()->withAttributeAliases([
+            'file_path' => 'path',
+        ]);
+
+        $this->expectException(RepositoryCreateException::class);
+        $this->expectExceptionMessage('Missing file path');
+
+        $repo->create([
+            'file_path' => 'newfile.txt',
+            'content'   => 'Hello World',
+        ]);
     }
 }
