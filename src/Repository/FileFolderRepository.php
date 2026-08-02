@@ -184,7 +184,53 @@ class FileFolderRepository implements RepositoryInterface
         array $orderBy = [],
         null|int|array $limit = null
     ): array {
-        throw new RepositoryReadException('Unsupported');
+        // Collect column values from both repositories
+        $fileValues = $this->fileRepository->findColumn(
+            column: $column,
+            key: $key,
+            where: $where,
+            orderBy: $orderBy,
+            limit: $limit
+        );
+
+        $folderValues = $this->folderRepository->findColumn(
+            column: $column,
+            key: $key,
+            where: $where,
+            orderBy: $orderBy,
+            limit: $limit
+        );
+
+        // If no key is used → simple merge
+        if ($key === null) {
+            $all = array_merge($fileValues, $folderValues);
+
+            // Apply limit manually (same logic as findAll)
+            if (is_int($limit)) {
+                return array_slice($all, 0, $limit);
+            }
+
+            if (is_array($limit) && isset($limit[0], $limit[1])) {
+                return array_slice($all, $limit[1], $limit[0]);
+            }
+
+            return $all;
+        }
+
+        // If key is used → associative merge
+        // Folder keys override file keys if identical (consistent with array_merge)
+        $all = array_merge($fileValues, $folderValues);
+
+        // Apply limit for associative arrays
+        if (is_int($limit)) {
+            return array_slice($all, 0, $limit, true);
+        }
+
+        if (is_array($limit) && isset($limit[0], $limit[1])) {
+            return array_slice($all, $limit[1], $limit[0], true);
+        }
+
+        return $all;
     }
     
     /**
