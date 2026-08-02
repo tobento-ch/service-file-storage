@@ -38,12 +38,14 @@ class FileRepository implements RepositoryInterface
      * @param StorageInterface $storage The underlying file storage.
      * @param string $rootFolder The root folder to operate on.
      * @param array<int, string> $fileAttributes The file attributes to load from storage.
+     * @param array<string, string> $attributeAliases The attribute aliases (alias => raw).
      * @param bool $recursive Whether to include files from subfolders.
      */
     final public function __construct(
         protected StorageInterface $storage,
         protected string $rootFolder = '',
         protected array $fileAttributes = ['stream', 'mimeType', 'size', 'width', 'height', 'lastModified', 'url'],
+        protected array $attributeAliases = [],
         protected bool $recursive = false,
     ) {}
     
@@ -114,6 +116,29 @@ class FileRepository implements RepositoryInterface
         $new = clone $this;
         $new->fileAttributes = $attributes;
         return $new;
+    }
+    
+    /**
+     * Returns a new instance with the specified attribute aliases.
+     *
+     * @param array<string, string> $aliases
+     * @return static
+     */
+    public function withAttributeAliases(array $aliases): static
+    {
+        $new = clone $this;
+        $new->attributeAliases = $aliases;
+        return $new;
+    }
+    
+    /**
+     * Returns the attribute aliases (alias => raw).
+     *
+     * @return array<string, string>
+     */
+    public function attributeAliases(): array
+    {
+        return $this->attributeAliases;
     }
 
     /**
@@ -243,15 +268,20 @@ class FileRepository implements RepositoryInterface
         
         $storage = new InMemoryStorage(['files' => $rows], $tables);
 
-        $repo = new class($storage) extends StorageRepository {
-            public function __construct($storage)
-            {
+        $repo = new class(
+            $storage,
+            $this->attributeAliases(),
+        ) extends StorageRepository {
+            public function __construct(
+                $storage,
+                protected array $aliases,
+            ) {
                 parent::__construct(storage: $storage, table: 'files', entityFactory: null);
             }
             
             protected function configureColumns(): iterable|ColumnsInterface
             {
-                return [
+                return new Column\AliasedColumns(
                     new Column\Id(),
                     new Column\Text('type'),
                     new Column\Text('storageName'),
@@ -267,7 +297,10 @@ class FileRepository implements RepositoryInterface
                     new Column\Text('url'),
                     new Column\Json('metadata'),
                     new StreamColumn('stream'),
-                ];
+                )->withAliases(
+                    aliases: $this->aliases,
+                    readonly: true,
+                );
             }
         };
         
@@ -311,7 +344,48 @@ class FileRepository implements RepositoryInterface
         array $orderBy = [],
         null|int|array $limit = null
     ): array {
-        throw new RepositoryReadException('Unsupported');
+        $column = $this->rewriteAttributeAlias($column);
+        $key = $key ? $this->rewriteAttributeAlias($key) : null;
+        
+        // Reuse the in-memory repo created in findAll()
+        $files = $this->findAll(where: $where, orderBy: $orderBy, limit: $limit);
+
+        $values = [];
+
+        foreach ($files as $i => $file) {
+            // Convert File object to array-like structure
+            $row = [
+                'id' => $i,
+                'type' => 'file',
+                'storageName' => $file->storageName(),
+                'path' => $file->path(),
+                'name' => $file->name(),
+                'filename' => $file->filename(),
+                'extension' => $file->extension(),
+                'size' => $file->size(),
+                'width' => $file->width(),
+                'height' => $file->height(),
+                'mimeType' => $file->mimeType(),
+                'lastModified' => $file->lastModified(),
+                'url' => $file->url(),
+                'metadata' => $file->metadata(),
+                'stream' => $file->stream(),
+            ];
+
+            if (!array_key_exists($column, $row)) {
+                continue;
+            }
+
+            $value = $row[$column];
+
+            if ($key !== null && array_key_exists($key, $row)) {
+                $values[$row[$key]] = $value;
+            } else {
+                $values[] = $value;
+            }
+        }
+
+        return $values;
     }
     
     /**
@@ -493,8 +567,20 @@ class FileRepository implements RepositoryInterface
      */
     protected function buildPath(string|int $id): string
     {
-        return $this->rootFolder() !== ''
-            ? rtrim($this->rootFolder(), '/') . '/' . ltrim($id, '/')
-            : ltrim($id, '/');
+        $root = trim($this->rootFolder(), '/');
+        $id = trim((string)$id, '/');
+
+        return $root === '' ? $id : $root . '/' . $id;
+    }
+    
+    /**
+     * Rewrite attribute alias.
+     *
+     * @param string $attribute
+     * @return string
+     */
+    protected function rewriteAttributeAlias(string $attribute): string
+    {
+        return $this->attributeAliases[$attribute] ?? $attribute;
     }
 }

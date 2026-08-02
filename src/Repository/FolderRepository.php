@@ -35,11 +35,13 @@ class FolderRepository implements RepositoryInterface
      *
      * @param StorageInterface $storage The underlying file storage.
      * @param string $rootFolder The root folder to operate on.
+     * @param array<string, string> $attributeAliases The attribute aliases (alias => raw).
      * @param bool $recursive Whether to include files from subfolders.
      */
     final public function __construct(
         protected StorageInterface $storage,
         protected string $rootFolder = '',
+        protected array $attributeAliases = [],
         protected bool $recursive = false,
     ) {}
     
@@ -89,6 +91,29 @@ class FolderRepository implements RepositoryInterface
         return $new;
     }
 
+    /**
+     * Returns a new instance with the specified attribute aliases.
+     *
+     * @param array<string, string> $aliases
+     * @return static
+     */
+    public function withAttributeAliases(array $aliases): static
+    {
+        $new = clone $this;
+        $new->attributeAliases = $aliases;
+        return $new;
+    }
+    
+    /**
+     * Returns the attribute aliases (alias => raw).
+     *
+     * @return array<string, string>
+     */
+    public function attributeAliases(): array
+    {
+        return $this->attributeAliases;
+    }
+    
     /**
      * Returns whether recursive mode is enabled.
      *
@@ -208,15 +233,20 @@ class FolderRepository implements RepositoryInterface
         
         $storage = new InMemoryStorage(['folders' => $rows], $tables);
 
-        $repo = new class($storage) extends StorageRepository {
-            public function __construct($storage)
-            {
+        $repo = new class(
+            $storage,
+            $this->attributeAliases(),
+        ) extends StorageRepository {
+            public function __construct(
+                $storage,
+                protected array $aliases,
+            ) {
                 parent::__construct(storage: $storage, table: 'folders', entityFactory: null);
             }
             
             protected function configureColumns(): iterable|ColumnsInterface
             {
-                return [
+                return new Column\AliasedColumns(
                     new Column\Id(),
                     new Column\Text('type'),
                     new Column\Text('storageName'),
@@ -225,7 +255,10 @@ class FolderRepository implements RepositoryInterface
                     new Column\Text('name'),
                     new Column\Datetime(name: 'lastModified', type: 'timestamp'),
                     new Column\Json('metadata'),
-                ];
+                )->withAliases(
+                    aliases: $this->aliases,
+                    readonly: true,
+                );
             }
         };
         
@@ -263,7 +296,41 @@ class FolderRepository implements RepositoryInterface
         array $orderBy = [],
         null|int|array $limit = null
     ): array {
-        throw new RepositoryReadException('Unsupported');
+        $column = $this->rewriteAttributeAlias($column);
+        $key = $key ? $this->rewriteAttributeAlias($key) : null;
+        
+        // Reuse the in-memory repo created in findAll()
+        $folders = $this->findAll(where: $where, orderBy: $orderBy, limit: $limit);
+
+        $values = [];
+
+        foreach ($folders as $i => $folder) {
+            // Convert Folder object to array-like structure
+            $row = [
+                'id' => $i,
+                'type' => 'folder',
+                'storageName'  => $folder->storageName(),
+                'path' => $folder->path(),
+                'parentPath' => $folder->parentPath(),
+                'name' => $folder->name(),
+                'lastModified' => $folder->lastModified(),
+                'metadata' => $folder->metadata(),
+            ];
+
+            if (!array_key_exists($column, $row)) {
+                continue;
+            }
+
+            $value = $row[$column];
+
+            if ($key !== null && array_key_exists($key, $row)) {
+                $values[$row[$key]] = $value;
+            } else {
+                $values[] = $value;
+            }
+        }
+
+        return $values;
     }
     
     /**
@@ -427,8 +494,20 @@ class FolderRepository implements RepositoryInterface
      */
     protected function buildPath(string|int $id): string
     {
-        return $this->rootFolder() !== ''
-            ? rtrim($this->rootFolder(), '/') . '/' . ltrim($id, '/')
-            : ltrim($id, '/');
+        $root = trim($this->rootFolder(), '/');
+        $id = trim((string)$id, '/');
+
+        return $root === '' ? $id : $root . '/' . $id;
+    }
+    
+    /**
+     * Rewrite attribute alias.
+     *
+     * @param string $attribute
+     * @return string
+     */
+    protected function rewriteAttributeAlias(string $attribute): string
+    {
+        return $this->attributeAliases[$attribute] ?? $attribute;
     }
 }
