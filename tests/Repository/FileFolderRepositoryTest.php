@@ -412,11 +412,143 @@ class FileFolderRepositoryTest extends TestCase
         $this->assertSame([], $deleted);
     }
     
-    public function testUnsupportedFindColumnThrows(): void
+    public function testFindColumnReturnsValues(): void
     {
         $repo = $this->makeRepo();
 
-        $this->expectException(RepositoryReadException::class);
-        $repo->findColumn('path');
+        $values = $repo->findColumn('name');
+
+        $this->assertSame(
+            [
+                // files (filename)
+                'apple.jpg',
+                'apricot.jpg',
+                'banana.png',
+                'carrot.jpg',
+
+                // folders (name)
+                'animals',
+                'fruits',
+                'vehicles',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKey(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'name', key: 'path');
+
+        $this->assertSame(
+            [
+                // files
+                'apple.jpg' => 'apple.jpg',
+                'apricot.jpg' => 'apricot.jpg',
+                'banana.png' => 'banana.png',
+                'carrot.jpg' => 'carrot.jpg',
+
+                // folders
+                'animals' => 'animals',
+                'fruits' => 'fruits',
+                'vehicles' => 'vehicles',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithLimit(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('name', limit: 3);
+
+        $this->assertSame(
+            [
+                'apple.jpg',
+                'apricot.jpg',
+                'banana.png',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKeyAndLimit(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(column: 'name', key: 'path', limit: 4);
+
+        $this->assertSame(
+            [
+                'apple.jpg' => 'apple.jpg',
+                'apricot.jpg' => 'apricot.jpg',
+                'banana.png' => 'banana.png',
+                'carrot.jpg' => 'carrot.jpg',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithOrderBy(): void
+    {
+        $repo = $this->makeRepo();
+
+        // Order by name descending
+        $values = $repo->findColumn('name', orderBy: ['name' => 'DESC']);
+
+        // DESC ordering applied inside each repo before merge
+        $this->assertSame(
+            [
+                // files DESC
+                'carrot.jpg',
+                'banana.png',
+                'apricot.jpg',
+                'apple.jpg',
+
+                // folders DESC
+                'vehicles',
+                'fruits',
+                'animals',
+            ],
+            $values
+        );
+    }
+
+    public function testFindColumnWithKeyAndOrderBy(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn(
+            column: 'name',
+            key: 'path',
+            orderBy: ['name' => 'ASC']
+        );
+
+        $this->assertSame(
+            [
+                // files ASC
+                'apple.jpg' => 'apple.jpg',
+                'apricot.jpg' => 'apricot.jpg',
+                'banana.png' => 'banana.png',
+                'carrot.jpg' => 'carrot.jpg',
+
+                // folders ASC
+                'animals' => 'animals',
+                'fruits' => 'fruits',
+                'vehicles' => 'vehicles',
+            ],
+            $values
+        );
+    }
+    
+    public function testFindColumnMissingColumnReturnsEmpty(): void
+    {
+        $repo = $this->makeRepo();
+
+        $values = $repo->findColumn('nonexistent');
+
+        $this->assertSame([], $values);
     }
 }
