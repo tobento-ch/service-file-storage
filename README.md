@@ -948,7 +948,7 @@ For more details, see the [Aliased Columns](https://github.com/tobento-ch/servic
 
 The following folder attributes may be aliased:
 
-- `id`
+- `row_id`
 - `type`
 - `storageName`
 - `path`
