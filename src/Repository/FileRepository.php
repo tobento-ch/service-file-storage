@@ -238,7 +238,7 @@ class FileRepository implements RepositoryInterface
         
         foreach ($files as $i => $file) {
             $rows[$i] = [
-                'id' => $i,
+                'row_id' => $i,
                 'type' => 'file',
                 'storageName' => $file->storageName(),
                 'path' => $file->path(),
@@ -259,11 +259,11 @@ class FileRepository implements RepositoryInterface
         $tables = new Tables()->add(
             table: 'files',
             columns: [
-                'id', 'type', 'storageName', 'path', 'name', 'filename', 'extension',
+                'row_id', 'type', 'storageName', 'path', 'name', 'filename', 'extension',
                 'size', 'width', 'height', 'mimeType', 'lastModified', 
                 'url', 'metadata', 'stream',
             ],
-            primaryKey: 'id',
+            primaryKey: 'row_id',
         );
         
         $storage = new InMemoryStorage(['files' => $rows], $tables);
@@ -282,7 +282,7 @@ class FileRepository implements RepositoryInterface
             protected function configureColumns(): iterable|ColumnsInterface
             {
                 return new Column\AliasedColumns(
-                    new Column\Id(),
+                    new Column\Id('row_id'),
                     new Column\Text('type'),
                     new Column\Text('storageName'),
                     new Column\Text('path'),

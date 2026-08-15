@@ -212,7 +212,7 @@ class FolderRepository implements RepositoryInterface
         
         foreach ($folders as $i => $folder) {
             $rows[$i] = [
-                'id' => $i,
+                'row_id' => $i,
                 'type' => 'folder',
                 'storageName' => $folder->storageName(),
                 'path' => $folder->path(),
@@ -226,9 +226,9 @@ class FolderRepository implements RepositoryInterface
         $tables = new Tables()->add(
             table: 'folders',
             columns: [
-                'id', 'type', 'storageName', 'path', 'parentPath', 'name', 'lastModified', 'metadata',
+                'row_id', 'type', 'storageName', 'path', 'parentPath', 'name', 'lastModified', 'metadata',
             ],
-            primaryKey: 'id',
+            primaryKey: 'row_id',
         );
         
         $storage = new InMemoryStorage(['folders' => $rows], $tables);
@@ -247,7 +247,7 @@ class FolderRepository implements RepositoryInterface
             protected function configureColumns(): iterable|ColumnsInterface
             {
                 return new Column\AliasedColumns(
-                    new Column\Id(),
+                    new Column\Id('row_id'),
                     new Column\Text('type'),
                     new Column\Text('storageName'),
                     new Column\Text('path'),
