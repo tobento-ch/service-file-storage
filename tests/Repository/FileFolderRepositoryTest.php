@@ -215,6 +215,18 @@ class FileFolderRepositoryTest extends TestCase
 
         $this->assertCount(2, $results);
     }
+    
+    public function testFindAllLimitWithOffsetAppliesOffsetOnce(): void
+    {
+        $repo = $this->makeRepo();
+
+        $all = $repo->findAll();
+        $limited = $repo->findAll(limit: [2, 1]);
+
+        $this->assertCount(2, $limited);
+        $this->assertSame($all[1]->path(), $limited[0]->path());
+        $this->assertSame($all[2]->path(), $limited[1]->path());
+    }
 
     public function testCountReturnsSumOfFileAndFolderCounts(): void
     {
@@ -410,6 +422,34 @@ class FileFolderRepositoryTest extends TestCase
         ]));
 
         $this->assertSame([], $deleted);
+    }
+    
+    public function testDeleteByIdDeletesNestedFolderWithoutRecursiveMode(): void
+    {
+        $repo = $this->makeRepo();
+
+        // create temp parent + nested folder
+        $repo->folderRepository()->storage()->createFolder('tempParent');
+        $repo->folderRepository()->storage()->createFolder('tempParent/tempChild');
+
+        try {
+            // the fixture exists (recursive lookup)
+            $this->assertNotNull(
+                $repo->withRecursive()->folderRepository()->findById('tempParent/tempChild')
+            );
+
+            $deleted = $repo->deleteById('tempParent/tempChild');
+
+            $this->assertSame('tempParent/tempChild', $deleted->path());
+
+            // ensure it is gone (recursive lookup, otherwise null is always returned)
+            $this->assertNull(
+                $repo->withRecursive()->folderRepository()->findById('tempParent/tempChild')
+            );
+        } finally {
+            // cleanup leftovers, also if an assertion above failed
+            $repo->folderRepository()->storage()->deleteFolder('tempParent');
+        }
     }
     
     public function testFindColumnReturnsValues(): void

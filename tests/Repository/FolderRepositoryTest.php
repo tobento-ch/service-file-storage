@@ -698,6 +698,64 @@ class FolderRepositoryTest extends TestCase
             'path' => ['not-a-string'],
         ]);
     }
+    
+    public function testCreateInsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        $folder = $repo->create(['path' => 'birds']);
+
+        $this->assertSame('animals/birds', $folder->path());
+        $this->assertNotNull($repo->findById('birds'));
+
+        // Not created in the storage root or in a doubled root folder:
+        $rootRepo = $repo->withRootFolder('')->withRecursive(true);
+        $this->assertNull($rootRepo->findById('birds'));
+        $this->assertNull($rootRepo->findById('animals/animals/birds'));
+
+        // cleanup
+        $repo->deleteById('birds');
+    }
+
+    public function testCreateWithRootFolderNormalizesSlashes(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('/animals/');
+
+        $folder = $repo->create(['path' => '/birds/']);
+
+        $this->assertSame('animals/birds', $folder->path());
+
+        // cleanup
+        $repo->deleteById('birds');
+    }
+
+    public function testCreateNestedFolderWithoutRecursiveMode(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->assertFalse($repo->recursive());
+
+        $folder = $repo->create(['path' => 'nested/deep']);
+
+        $this->assertSame('nested/deep', $folder->path());
+
+        // cleanup
+        $repo->withRecursive(true)->deleteById('nested/deep');
+        $repo->deleteById('nested');
+    }
+
+    public function testCreateNestedFolderInsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        $folder = $repo->create(['path' => 'birds/owls']);
+
+        $this->assertSame('animals/birds/owls', $folder->path());
+
+        // cleanup
+        $repo->withRecursive(true)->deleteById('birds/owls');
+        $repo->deleteById('birds');
+    }
 
     public function testUpdateByIdThrowsUnsupportedException(): void
     {
@@ -780,6 +838,18 @@ class FolderRepositoryTest extends TestCase
         ]));
 
         $this->assertSame([], $deleted);
+    }
+    
+    public function testDeleteByIdDeletesNestedFolderWithoutRecursiveMode(): void
+    {
+        $repo = $this->makeRepo();
+
+        $this->assertFalse($repo->recursive());
+
+        $deleted = $repo->deleteById('animals/cats');
+
+        $this->assertSame('animals/cats', $deleted->path());
+        $this->assertNull($repo->findById('animals/cats'));
     }
     
     public function testAttributeAliasesWorkForWhere(): void

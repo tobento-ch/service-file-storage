@@ -819,6 +819,94 @@ class FileRepositoryTest extends TestCase
         ]);
     }
     
+    public function testCreateWritesFileInsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        $file = $repo->create([
+            'path' => 'newfile.txt',
+            'content' => 'Hello World',
+        ]);
+
+        $this->assertSame('animals/newfile.txt', $file->path());
+        $this->assertSame(11, $file->size());
+
+        // Can be found using the relative id:
+        $this->assertNotNull($repo->findById('newfile.txt'));
+
+        // And exists at the full path in the storage:
+        $this->assertNotNull(
+            $repo->withRootFolder('')->findById('animals/newfile.txt')
+        );
+
+        // cleanup
+        $repo->deleteById('newfile.txt');
+    }
+
+    public function testCreateWithRootFolderDoesNotWriteOutsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        $repo->create([
+            'path' => 'newfile.txt',
+            'content' => 'Hello World',
+        ]);
+
+        // Not written to the storage root or to a doubled root folder:
+        $rootRepo = $repo->withRootFolder('');
+        $this->assertNull($rootRepo->findById('newfile.txt'));
+        $this->assertNull($rootRepo->findById('animals/animals/newfile.txt'));
+
+        // cleanup
+        $repo->deleteById('newfile.txt');
+    }
+
+    public function testCreateWithRootFolderNormalizesSlashes(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('/animals/');
+
+        $file = $repo->create([
+            'path' => '/newfile.txt',
+            'content' => 'Hello World',
+        ]);
+
+        $this->assertSame('animals/newfile.txt', $file->path());
+
+        // cleanup
+        $repo->deleteById('newfile.txt');
+    }
+
+    public function testCreateWithoutContentAssumesFileExistsInsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        // Pre-write file manually using the full path:
+        $repo->storage()->write('animals/prewritten.txt', 'ABC');
+
+        $file = $repo->create([
+            'path' => 'prewritten.txt',
+        ]);
+
+        $this->assertSame('animals/prewritten.txt', $file->path());
+        $this->assertSame(3, $file->size());
+
+        // cleanup
+        $repo->deleteById('prewritten.txt');
+    }
+
+    public function testCreateWithoutContentThrowsIfFileExistsOnlyOutsideRootFolder(): void
+    {
+        $repo = $this->makeRepo()->withRootFolder('animals');
+
+        $this->expectException(RepositoryCreateException::class);
+        $this->expectExceptionMessage('File not found after creation attempt');
+
+        // apple.jpg exists in the storage root, but not inside animals/
+        $repo->create([
+            'path' => 'apple.jpg',
+        ]);
+    }
+    
     public function testCreateThrowsOnInvalidPath(): void
     {
         $repo = $this->makeRepo();
