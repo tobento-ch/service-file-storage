@@ -368,10 +368,11 @@ class FolderRepository implements RepositoryInterface
             );
         }
 
-        $path = $this->buildPath($attributes['path']);
+        // Relative path (id), findById() applies the root folder itself.
+        $id = $attributes['path'];
 
         try {
-            $this->storage->createFolder($path);
+            $this->storage->createFolder($this->buildPath($id));
         } catch (FolderException $e) {
             throw new RepositoryCreateException(
                 attributes: $attributes,
@@ -380,7 +381,7 @@ class FolderRepository implements RepositoryInterface
             );
         }
 
-        $folder = $this->findById($path);
+        $folder = $this->withRecursive()->findById($id);
 
         if (is_null($folder)) {
             throw new RepositoryCreateException(
@@ -427,7 +428,7 @@ class FolderRepository implements RepositoryInterface
      */
     public function deleteById(string|int $id): object
     {
-        $folder = $this->findById($id);
+        $folder = $this->withRecursive()->findById($id);
 
         if (is_null($folder)) {
             throw new RepositoryDeleteException(

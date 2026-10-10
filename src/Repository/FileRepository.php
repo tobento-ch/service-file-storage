@@ -423,26 +423,26 @@ class FileRepository implements RepositoryInterface
             );
         }
 
-        $path = $this->buildPath($attributes['path']);
+        // Relative path (id), findById() applies the root folder itself.
+        $id = $attributes['path'];
 
         // CASE 1: FileSource already wrote the file
         if (!array_key_exists('content', $attributes)) {
-            // Nothing to write — assume FileSource handled it
-            $file = $this->findById($path);
-            
+            $file = $this->findById($id);
+
             if (is_null($file)) {
                 throw new RepositoryCreateException(
                     attributes: $attributes,
                     message: 'File not found after creation attempt',
                 );
             }
-            
+
             return $file;
         }
 
         try {
             $this->storage->write(
-                path: $path,
+                path: $this->buildPath($id),
                 content: $attributes['content'],
             );
         } catch (FileWriteException $e) {
@@ -453,7 +453,7 @@ class FileRepository implements RepositoryInterface
             );
         }
 
-        $file = $this->findById($path);
+        $file = $this->findById($id);
 
         if (is_null($file)) {
             throw new RepositoryCreateException(
