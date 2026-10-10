@@ -150,20 +150,54 @@ class FileFolderRepository implements RepositoryInterface
      */
     public function findAll(array $where = [], array $orderBy = [], null|int|array $limit = null): iterable
     {
-        $files = iterator_to_array($this->fileRepository->findAll($where, $orderBy, $limit));
-        $folders = iterator_to_array($this->folderRepository->findAll($where, $orderBy, $limit));
+        $fetchLimit = $this->fetchLimit($limit);
 
-        $all = array_merge($files, $folders);
+        $files = iterator_to_array($this->fileRepository->findAll($where, $orderBy, $fetchLimit));
+        $folders = iterator_to_array($this->folderRepository->findAll($where, $orderBy, $fetchLimit));
 
+        return $this->applyLimit(array_merge($files, $folders), $limit);
+    }
+
+    /**
+     * Limit for each repository: number + offset, without offset.
+     *
+     * @param null|int|array<int, int> $limit
+     * @return null|int
+     */
+    protected function fetchLimit(null|int|array $limit): null|int
+    {
         if (is_int($limit)) {
-            return array_slice($all, 0, $limit);
+            return $limit;
         }
 
         if (is_array($limit) && isset($limit[0], $limit[1])) {
-            return array_slice($all, $limit[1], $limit[0]);
+            return $limit[0] + $limit[1];
         }
 
-        return $all;
+        return null;
+    }
+
+    /**
+     * Applies the limit (number or [number, offset]) to the items.
+     *
+     * @template TKey of array-key
+     * @template TValue
+     * @param array<TKey, TValue> $items
+     * @param null|int|array<int, int> $limit
+     * @param bool $preserveKeys
+     * @return array<TKey, TValue>
+     */
+    protected function applyLimit(array $items, null|int|array $limit, bool $preserveKeys = false): array
+    {
+        if (is_int($limit)) {
+            return array_slice($items, 0, $limit, $preserveKeys);
+        }
+
+        if (is_array($limit) && isset($limit[0], $limit[1])) {
+            return array_slice($items, $limit[1], $limit[0], $preserveKeys);
+        }
+
+        return $items;
     }
     
     /**
@@ -330,8 +364,8 @@ class FileFolderRepository implements RepositoryInterface
             return $this->fileRepository->deleteById($id);
         }
 
-        // Try folder
-        $folder = $this->folderRepository->findById($id);
+        // Try folder (recursive lookup, as FolderRepository::deleteById() does)
+        $folder = $this->folderRepository->withRecursive()->findById($id);
 
         if (!is_null($folder)) {
             return $this->folderRepository->deleteById($id);
